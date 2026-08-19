@@ -1,0 +1,66 @@
+services:
+
+  ui:
+    image: sawakli-ui:latest
+    container_name: sawakli-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  api:
+    image: sawakli-api:latest
+    container_name: sawakli-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db-app
+      - worker
+      - connector
+
+  connector:
+    image: sawakli-connector:latest
+    container_name: sawakli-connector
+    depends_on:
+      - db-app
+
+  db-app:
+    image: sawakli-db-app:latest
+    container_name: sawakli-db-app
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: sawakli
+      DB_USER: postgres
+      DB_PASSWORD: change_me
+    depends_on:
+      - db
+
+  db:
+    image: sawakli-db:latest
+    container_name: sawakli-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: sawakli
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: change_me
+
+  agent:
+    image: sawakli-agent:latest
+    container_name: sawakli-agent
+    depends_on:
+      - db-app
+
+  worker:
+    image: sawakli-worker:latest
+    container_name: sawakli-worker
+    depends_on:
+      - db-app
+      - connector
+      - agent
+
+networks:
+  default:
+    name: sawakli-network
+    external: true

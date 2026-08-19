@@ -1,0 +1,301 @@
+# ============================================================
+# Sawakli AI - Continuous Integration
+# ============================================================
+#
+# This workflow runs automatically whenever:
+#   1. Code is pushed to main or develop
+#   2. A Pull Request targets main or develop
+#
+# The CI checks that:
+#   - Python services have valid Python code
+#   - Python dependencies can be installed
+#   - The UI can install, lint, and build successfully
+#   - Every Docker image can be built
+#   - Docker Compose configuration is valid
+#
+# IMPORTANT:
+# This CI does NOT deploy anything.
+# It only verifies that the repository is in a healthy state.
+# ============================================================
+
+name: CI
+
+
+# ------------------------------------------------------------
+# When should the CI run?
+# ------------------------------------------------------------
+
+on:
+  # Run CI after code is pushed to these branches.
+  push:
+    branches:
+      - main
+      - develop
+
+  # Run CI when a Pull Request targets these branches.
+  pull_request:
+    branches:
+      - main
+      - develop
+
+
+# ============================================================
+# JOB 1 - Python Checks
+# ============================================================
+#
+# The Sawakli backend currently contains several Python services:
+#
+#   agent
+#   api
+#   connector
+#   database/app
+#   worker
+#
+# GitHub creates one Python-check environment for each service.
+#
+# At this stage we:
+#   1. Install Python 3.12
+#   2. Install the service's requirements
+#   3. Compile the Python source code
+#
+# Later, when tests are implemented, this job will also run
+# the unit/integration test suites.
+# ============================================================
+
+jobs:
+
+  python-checks:
+    name: Python Checks
+
+    # GitHub provides a clean Linux machine for the job.
+    runs-on: ubuntu-latest
+
+    # Run the same checks independently for every Python service.
+    strategy:
+      fail-fast: false
+
+      matrix:
+        service:
+          - agent
+          - api
+          - connector
+          - database/app
+          - worker
+
+    steps:
+
+      # Download the repository into the GitHub runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install the Python version used by the project.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+          # Cache pip packages so future CI runs are faster.
+          cache: pip
+
+      # Install dependencies from the service's requirements.txt.
+      #
+      # Example:
+      #   agent/requirements.txt
+      #   api/requirements.txt
+      #   worker/requirements.txt
+      #
+      - name: Install dependencies
+        working-directory: ${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Compile all Python files.
+      #
+      # This catches syntax errors before the code is merged.
+      #
+      # Example:
+      #   invalid Python syntax
+      #   malformed imports
+      #   broken source files
+      #
+      - name: Compile Python source
+        working-directory: ${{ matrix.service }}
+        run: |
+          python -m compileall -q .
+
+
+  # ==========================================================
+  # JOB 2 - UI Checks
+  # ==========================================================
+  #
+  # The UI is a Next.js / React / TypeScript application.
+  #
+  # This job verifies that:
+  #   1. Node.js can be installed
+  #   2. npm dependencies can be installed
+  #   3. ESLint finds no errors
+  #   4. Next.js can successfully build the application
+  #
+  # A failed lint or build means the Pull Request cannot pass CI.
+  # ==========================================================
+
+  ui-checks:
+    name: UI Checks
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Download the repository.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Node.js.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+          # Cache npm packages.
+          cache: npm
+
+          # Tell GitHub which lockfile controls dependencies.
+          cache-dependency-path: ui/package-lock.json
+
+      # Install exactly the dependencies recorded in package-lock.json.
+      #
+      # npm ci is preferred in CI because it provides reproducible
+      # installations instead of modifying the lockfile.
+      #
+      - name: Install dependencies
+        working-directory: ui
+        run: npm ci
+
+      # Run ESLint.
+      #
+      # This catches common JavaScript/TypeScript/React problems
+      # and enforces the project's coding rules.
+      #
+      - name: Lint
+        working-directory: ui
+        run: npm run lint
+
+      # Build the production version of the Next.js application.
+      #
+      # This catches problems that may not be detected by ESLint,
+      # such as TypeScript/build errors.
+      #
+      - name: Build
+        working-directory: ui
+        run: npm run build
+
+
+  # ==========================================================
+  # JOB 3 - Docker Builds
+  # ==========================================================
+  #
+  # This job verifies that every service can actually be turned
+  # into a Docker image using its Dockerfile.
+  #
+  # Services:
+  #
+  #   agent
+  #   api
+  #   connector
+  #   database/app
+  #   database/db
+  #   worker
+  #   ui
+  #
+  # This is important because code can pass Python/TypeScript
+  # checks but still fail during Docker image construction.
+  #
+  # Docker builds only start AFTER the Python and UI checks pass.
+  # ==========================================================
+
+  docker-build:
+    name: Docker Build
+
+    runs-on: ubuntu-latest
+
+    # Do not build Docker images if the source checks failed.
+    needs:
+      - python-checks
+      - ui-checks
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        service:
+          - agent
+          - api
+          - connector
+          - database/app
+          - database/db
+          - worker
+          - ui
+
+    steps:
+
+      # Download the repository.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Build the Docker image for the current service.
+      #
+      # GitHub Actions does not provide a "replace()" expression,
+      # so we use the Linux "tr" command to convert:
+      #
+      #   database/app -> database-app
+      #   database/db  -> database-db
+      #
+      # This gives every image a valid and consistent name.
+      #
+      - name: Build Docker image
+        run: |
+          IMAGE_NAME=$(echo "${{ matrix.service }}" | tr '/' '-')
+
+          docker build \
+            -t "sawakli-${IMAGE_NAME}:ci" \
+            "./${{ matrix.service }}"
+
+
+  # ==========================================================
+  # JOB 4 - Docker Compose Validation
+  # ==========================================================
+  #
+  # This checks the docker-compose.yml file itself.
+  #
+  # It verifies that Docker Compose can parse the configuration
+  # and resolve its structure correctly.
+  #
+  # This does NOT start the entire Sawakli system.
+  #
+  # That is intentional:
+  # CI should remain fast and should not depend on external
+  # databases, credentials, APIs, or production infrastructure.
+  # ==========================================================
+
+  compose-config:
+    name: Validate Docker Compose
+
+    runs-on: ubuntu-latest
+
+    # Only validate Compose after all Docker images build.
+    needs:
+      - docker-build
+
+    steps:
+
+      # Download the repository.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Validate docker-compose.yml.
+      #
+      # If the YAML structure is invalid or Compose cannot
+      # interpret the configuration, this step fails.
+      #
+      - name: Validate Compose configuration
+        run: docker compose config
