@@ -1,0 +1,131 @@
+name: Sawakli AI CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/backend
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: sawakli
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sawakli"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend
+        run: pip install -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Type check
+        run: mypy src
+
+      - name: Tests
+        run: pytest
+
+      - name: Verify migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli
+        run: alembic upgrade head
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Build
+        run: npm run build
+
+      - name: Tests
+        run: npm test
+
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Start stack and wait for health checks
+        run: docker compose up -d --wait
+
+      - name: Verify service health
+        run: |
+          docker compose ps
+          test "$(docker inspect --format='{{.State.Health.Status}}' sawakli-postgres)" = "healthy"
+          test "$(docker inspect --format='{{.State.Health.Status}}' sawakli-api)" = "healthy"
+          test "$(docker inspect --format='{{.State.Health.Status}}' sawakli-worker)" = "healthy"
+          test "$(docker inspect --format='{{.State.Health.Status}}' sawakli-web)" = "healthy"
+
+      - name: API smoke test
+        run: curl --fail http://localhost:8000/health
+
+      - name: Web to API smoke test
+        run: docker exec sawakli-web wget -qO- http://api:8000/health
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

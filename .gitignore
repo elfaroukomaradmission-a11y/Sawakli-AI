@@ -1,0 +1,70 @@
+# ============================================================
+# Sawakli AI - Git Ignore
+# ============================================================
+
+# ---------- Environment ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# ---------- Node / Next.js ----------
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+.npm/
+.nyc_output/
+coverage/
+
+# ---------- Docker ----------
+*.log
+docker-compose.override.yml
+
+# ---------- IDE ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+.idea/
+*.iml
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Temporary files ----------
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ---------- Project-specific ----------
+apps/backend/.pytest_cache/
+apps/backend/.ruff_cache/
+apps/web/.next/
+# Python packaging artifacts
+*.egg-info/

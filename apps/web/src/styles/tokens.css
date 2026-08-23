@@ -1,0 +1,71 @@
+:root {
+  /* ============================================================
+     Sawakli AI — Design Tokens
+     Single source of truth for the visual system.
+     ============================================================ */
+
+  /* Brand */
+  --color-brand-blue: #2A6F97;
+
+  /* Semantic colors */
+  --color-text-primary: #17202A;
+  --color-text-secondary: #52616B;
+  --color-text-muted: #7B8794;
+  --color-text-inverse: #FFFFFF;
+
+  --color-background: #FFFFFF;
+  --color-surface: #F7F9FA;
+  --color-surface-elevated: #FFFFFF;
+
+  --color-border: #D9E1E6;
+  --color-border-strong: #B8C5CC;
+
+  --color-success: #2E7D32;
+  --color-warning: #ED9B00;
+  --color-error: #C62828;
+  --color-info: #2A6F97;
+
+  /* Typography */
+  --font-family-sans: var(--font-albert-sans), sans-serif;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.7;
+
+  /* Spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.10);
+}
