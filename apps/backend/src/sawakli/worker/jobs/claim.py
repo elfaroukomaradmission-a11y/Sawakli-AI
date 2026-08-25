@@ -1,9 +1,9 @@
-from sqlalchemy import case, select
+from sqlalchemy import Select, case, select
 
 from sawakli.db.models.jobs import Job
 
 
-def claim_next_job():
+def claim_next_job() -> Select[tuple[Job]]:
     """Build the query for the highest-priority pending job."""
     priority_rank = case(
         (Job.priority == "HIGH", 0),

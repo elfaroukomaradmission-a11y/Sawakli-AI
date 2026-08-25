@@ -20,7 +20,7 @@ class Job(Base):
         PGUUID(as_uuid=True),
         nullable=False,
     )
-    campaign_ids: Mapped[list | None] = mapped_column(
+    campaign_ids: Mapped[list[object] | None] = mapped_column(
         JSONB,
     )
     triggered_by_user_id: Mapped[UUID | None] = mapped_column(
