@@ -1,10 +1,12 @@
 name: Sawakli AI CI
+
 on:
   push:
     branches:
       - main
       - develop
   pull_request:
+
 jobs:
   backend:
     name: Backend
@@ -47,6 +49,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli
         run: alembic upgrade head
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -72,16 +75,26 @@ jobs:
         run: npm run build
       - name: Tests
         run: npm test
+
   integration:
     name: Integration
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build Docker images
         run: docker compose build
+
+      - name: Start PostgreSQL
+        run: docker compose up -d postgres
+
+      - name: Run database migrations
+        run: docker compose run --rm api alembic upgrade head
+
       - name: Start stack and wait for health checks
         run: docker compose up -d --wait
+
       - name: Verify service health
         run: |
           docker compose ps
@@ -89,15 +102,17 @@ jobs:
           test "$(docker inspect --format='{{.State.Health.Status}}' sawakli-api)" = "healthy"
           test "$(docker inspect --format='{{.State.Health.Status}}' sawakli-worker)" = "healthy"
           test "$(docker inspect --format='{{.State.Health.Status}}' sawakli-web)" = "healthy"
-      - name: Run database migrations
-        run: docker compose exec -T api alembic upgrade head
+
       - name: API smoke test
         run: curl --fail http://localhost:8000/health
+
       - name: Web to API smoke test
         run: docker exec sawakli-web wget -qO- http://api:8000/health
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
+
       - name: Tear down
         if: always()
         run: docker compose down -v
