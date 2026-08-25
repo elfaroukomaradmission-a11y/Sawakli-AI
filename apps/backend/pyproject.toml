@@ -16,6 +16,7 @@ dependencies = [
     "pydantic>=2.10,<3.0",
     "pydantic-settings>=2.7,<3.0",
     "alembic>=1.14,<2.0",
+    "cryptography>=43,<44",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +31,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+sawakli = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
@@ -42,6 +46,15 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# These embed Ahmed Ibrahim's DATA-01 SQL verbatim (see each file's docstring) —
+# byte-for-byte fidelity to the original, verified-working SQL matters more here
+# than Python line-length style, and the SQL includes long seed-data rows that
+# were never meant to be read as Python.
+"alembic/versions/*.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
+mypy_path = "src"
+explicit_package_bases = true
