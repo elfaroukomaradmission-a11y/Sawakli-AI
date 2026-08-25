@@ -1,14 +1,13 @@
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import delete, func, select
 
 from sawakli.db.models.jobs import Job
 from sawakli.db.session import SessionLocal
-
 
 # Number of worker processes running concurrently.
 WORKER_COUNT = 5
@@ -29,7 +28,7 @@ def create_jobs() -> None:
         db.execute(delete(Job))
         db.commit()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Create jobs for the claim pipeline.
         jobs = [

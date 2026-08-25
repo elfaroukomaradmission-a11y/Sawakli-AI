@@ -5,7 +5,6 @@ import time
 from sawakli.db.session import SessionLocal
 from sawakli.worker.scheduler.loop import run_once
 
-
 HEARTBEAT_PATH = pathlib.Path(tempfile.gettempdir()) / "worker_heartbeat"
 INTERVAL_SECONDS = 5
 

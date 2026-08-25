@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -64,7 +64,7 @@ def run_once(db: Session) -> list[Job]:
         )
 
         if final_status == JobStatus.RUNNING:
-            pending_job.claimed_at = datetime.now(timezone.utc)
+            pending_job.claimed_at = datetime.now(UTC)
 
         processed_jobs.append(pending_job)
 

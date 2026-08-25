@@ -3,7 +3,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sawakli.db.session import Base
-from sawakli.db.models import Job
+
 config = context.config
 
 database_url = os.getenv("DATABASE_URL")

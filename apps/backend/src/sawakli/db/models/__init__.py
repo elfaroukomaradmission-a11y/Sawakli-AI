@@ -1,1 +1,1 @@
-from sawakli.db.models.jobs import Job
+from sawakli.db.models.jobs import Job as Job
