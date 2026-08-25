@@ -18,10 +18,7 @@ def main() -> None:
         try:
             processed_jobs = run_once(db)
 
-            print(
-                f"Worker cycle complete. "
-                f"Processed: {len(processed_jobs)}"
-            )
+            print(f"Worker cycle complete. Processed: {len(processed_jobs)}")
 
             HEARTBEAT_PATH.touch()
 

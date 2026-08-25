@@ -8,6 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 # Load database configuration from the project's root .env file.
 load_dotenv()
 
+
 class Base(DeclarativeBase):
     pass
 

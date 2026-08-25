@@ -93,21 +93,11 @@ def test_multiple_workers():
 
     try:
         # Confirm that all test jobs still exist.
-        total = db.scalar(
-            select(func.count()).select_from(Job)
-        )
+        total = db.scalar(select(func.count()).select_from(Job))
 
-        pending = db.scalar(
-            select(func.count())
-            .select_from(Job)
-            .where(Job.status == "PENDING")
-        )
+        pending = db.scalar(select(func.count()).select_from(Job).where(Job.status == "PENDING"))
 
-        running = db.scalar(
-            select(func.count())
-            .select_from(Job)
-            .where(Job.status == "RUNNING")
-        )
+        running = db.scalar(select(func.count()).select_from(Job).where(Job.status == "RUNNING"))
 
         assert total == PENDING_COUNT + RUNNING_COUNT
 

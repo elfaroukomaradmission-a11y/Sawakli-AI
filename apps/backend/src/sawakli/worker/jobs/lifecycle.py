@@ -25,9 +25,6 @@ def transition_job_status(
     }
 
     if target not in allowed_transitions[current]:
-        raise ValueError(
-            f"Invalid job status transition: "
-            f"{current} -> {target}"
-        )
+        raise ValueError(f"Invalid job status transition: {current} -> {target}")
 
     return target
