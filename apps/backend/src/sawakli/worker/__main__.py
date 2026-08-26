@@ -1,22 +1,34 @@
-"""
-Minimal Sawakli worker entrypoint.
-
-Idles and touches a heartbeat file so the compose healthcheck can confirm
-it's alive. Wire in real job dispatch (jobs/, orchestration/, scheduler/)
-once that layer is designed.
-"""
-
 import pathlib
+import tempfile
 import time
 
-HEARTBEAT_PATH = pathlib.Path("/tmp/worker_heartbeat")
+from sawakli.db.session import SessionLocal
+from sawakli.worker.scheduler.loop import run_once
+
+HEARTBEAT_PATH = pathlib.Path(tempfile.gettempdir()) / "worker_heartbeat"
 INTERVAL_SECONDS = 5
 
 
 def main() -> None:
-    print("Sawakli worker started, idling...")
+    print("Sawakli worker started.")
+
     while True:
-        HEARTBEAT_PATH.touch()
+        db = SessionLocal()
+
+        try:
+            processed_jobs = run_once(db)
+
+            print(f"Worker cycle complete. Processed: {len(processed_jobs)}")
+
+            HEARTBEAT_PATH.touch()
+
+        except Exception as exc:
+            db.rollback()
+            print(f"Worker cycle failed: {exc}")
+
+        finally:
+            db.close()
+
         time.sleep(INTERVAL_SECONDS)
 
 

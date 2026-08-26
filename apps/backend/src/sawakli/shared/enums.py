@@ -2,10 +2,12 @@ from enum import StrEnum
 
 
 class JobStatus(StrEnum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
+    CANCELLED = "CANCELLED"
 
 
 class ConnectorType(StrEnum):

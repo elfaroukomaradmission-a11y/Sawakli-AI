@@ -16,6 +16,23 @@ services:
       timeout: 5s
       retries: 10
 
+  postgres-test:
+    image: postgres:18
+    container_name: sawakli-test-postgres
+    environment:
+      POSTGRES_DB: sawakli_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: change-me
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sawakli_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: ./apps/backend
@@ -23,6 +40,8 @@ services:
     container_name: sawakli-api
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-sawakli}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-real-secret}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -42,6 +61,8 @@ services:
     container_name: sawakli-worker
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-sawakli}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-real-secret}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
     command: ["python", "-m", "sawakli.worker"]
     depends_on:
       postgres:
@@ -75,3 +96,4 @@ services:
 
 volumes:
   postgres_data:
+  postgres_test_data:
