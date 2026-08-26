@@ -8,7 +8,7 @@ import pytest
 from alembic.config import Config
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
 from alembic import command
@@ -124,3 +124,34 @@ def insert_job(db_session: Session, organization_id: UUID) -> UUID:
     )
     db_session.commit()
     return job_id
+
+
+def insert_campaign(db_session: Session, organization_id: UUID) -> UUID:
+    """Insert a campaign (plus the data_source it must reference) for a test org.
+
+    No ORM model exists for either table yet (API-02 owns that) -- raw SQL
+    against the real schema is the lightest way to get a valid row for tests
+    that need to prove campaign_ids ownership-checking actually works.
+    """
+    data_source_id = uuid4()
+    campaign_id = uuid4()
+    db_session.execute(
+        text(
+            "INSERT INTO data_sources (id, organization_id, provider) "
+            "VALUES (:id, :organization_id, 'csv_demo')"
+        ),
+        {"id": data_source_id, "organization_id": organization_id},
+    )
+    db_session.execute(
+        text(
+            "INSERT INTO campaigns (id, organization_id, data_source_id, name, platform) "
+            "VALUES (:id, :organization_id, :data_source_id, 'Test Campaign', 'google')"
+        ),
+        {
+            "id": campaign_id,
+            "organization_id": organization_id,
+            "data_source_id": data_source_id,
+        },
+    )
+    db_session.commit()
+    return campaign_id
