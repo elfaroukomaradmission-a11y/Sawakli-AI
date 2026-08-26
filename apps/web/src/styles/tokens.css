@@ -1,47 +1,104 @@
 :root {
   /* ============================================================
-     Sawakli AI � Design Tokens
+     Sawakli AI — Design Tokens
      Single source of truth for the visual system.
      ============================================================ */
 
   /* Brand */
   --color-brand-blue: #2A6F97;
 
-  /* Semantic colors */
-  --color-text-primary: #17202A;
-  --color-text-secondary: #52616B;
-  --color-text-muted: #7B8794;
-  --color-text-inverse: #FFFFFF;
+  /* Surfaces */
+  --color-background: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-raised: #f1f3f6;
 
-  --color-background: #FFFFFF;
-  --color-surface: #F7F9FA;
-  --color-surface-elevated: #FFFFFF;
+  /* Sidebar */
+  --sidebar-w: 220px;
+  --color-sidebar-bg: #f0f2f7;
+  --color-sidebar-text: #1e293b;
+  --color-sidebar-text-dim: #475569;
+  --color-sidebar-text-faint: #94a3b8;
+  --color-sidebar-hover-bg: rgba(0, 0, 0, 0.04);
+  --color-sidebar-active-bg: rgba(42, 111, 151, 0.08);
+  --color-sidebar-divider: rgba(0, 0, 0, 0.06);
+  --color-sidebar-avatar-bg: #e2e8f0;
 
-  --color-border: #D9E1E6;
-  --color-border-strong: #B8C5CC;
+  /* Accent */
+  --color-accent: #2a6f97;
+  --color-accent-hover: #1f5a7a;
+  --color-accent-light: #edf5fa;
+  --color-accent-border: #8ec3de;
 
-  --color-success: #2E7D32;
-  --color-warning: #ED9B00;
-  --color-error: #C62828;
-  --color-info: #2A6F97;
+  /* Text */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-faint: #94a3b8;
+  --color-text-inverse: #ffffff;
+
+  /* Borders */
+  --color-border: #dfe3ea;
+  --color-border-light: #f0f1f4;
+  --color-border-strong: #c0c8d4;
+
+  /* Status — Success */
+  --color-success: #18915e;
+  --color-success-hover: #14784e;
+  --color-success-light: #eef8f2;
+  --color-success-border: #90d4b0;
+  --color-success-btn: #18915e;
+  --color-success-btn-hover: #14784e;
+
+  /* Status — Warning */
+  --color-warning: #c88a04;
+  --color-warning-hover: #a87303;
+  --color-warning-light: #fdf6e3;
+  --color-warning-border: #f0d580;
+
+  /* Status — Error / Danger */
+  --color-error: #d93644;
+  --color-error-hover: #b82d38;
+  --color-error-light: #fdf0f0;
+  --color-error-border: #f0a8a8;
+
+  /* Status — Info */
+  --color-info: #0b84a5;
+  --color-info-light: #e8f4fa;
+
+  /* Badges */
+  --color-badge-pending-bg: #f3e8ff;
+  --color-badge-pending-text: #7c3aed;
+  --color-badge-google-bg: #e8f4fa;
+  --color-badge-google-text: #0369a1;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-status-error: 0 2px 8px rgba(217, 54, 68, 0.08);
+  --shadow-status-success: 0 2px 8px rgba(24, 145, 94, 0.06);
+  --shadow-status-warning: 0 2px 8px rgba(200, 138, 4, 0.07);
 
   /* Typography */
   --font-family-sans: var(--font-albert-sans), sans-serif;
 
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-md: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 1.875rem;
+  --font-size-xs: 0.6875rem;
+  --font-size-sm: 0.75rem;
+  --font-size-md: 0.8125rem;
+  --font-size-lg: 0.875rem;
+  --font-size-xl: 1rem;
+  --font-size-2xl: 1.0625rem;
+  --font-size-3xl: 1.5rem;
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
 
   --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.7;
 
@@ -58,14 +115,76 @@
   --spacing-16: 4rem;
 
   /* Radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px rgb(0 0 0 / 0.08);
-  --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.10);
+  /* Transitions */
+  --transition: 0.2s ease;
+  --transition-fast: 0.15s ease;
+}
+
+/* ============================================================
+   Dark Mode
+   ============================================================ */
+.dark {
+  --color-background: #0a0f1a;
+  --color-surface: #111827;
+  --color-surface-elevated: #111827;
+  --color-surface-raised: #1a2235;
+
+  --color-sidebar-bg: #0c111d;
+  --color-sidebar-text: #e2e8f0;
+  --color-sidebar-text-dim: #94a3b8;
+  --color-sidebar-text-faint: #64748b;
+  --color-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --color-sidebar-active-bg: rgba(42, 111, 151, 0.18);
+  --color-sidebar-divider: rgba(255, 255, 255, 0.06);
+  --color-sidebar-avatar-bg: #1e293b;
+
+  --color-accent: #3a9fd4;
+  --color-accent-hover: #4db1e0;
+  --color-accent-light: #112a3a;
+  --color-accent-border: #1f4a66;
+
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-text-faint: #475569;
+  --color-text-inverse: #ffffff;
+
+  --color-border: #1f2d45;
+  --color-border-light: #1a2235;
+  --color-border-strong: #2d3f5e;
+
+  --color-success: #6ee7b7;
+  --color-success-hover: #34d399;
+  --color-success-light: #0d2318;
+  --color-success-border: #1a4a30;
+  --color-success-btn: #1a9a65;
+  --color-success-btn-hover: #178a5a;
+
+  --color-warning: #fcd34d;
+  --color-warning-hover: #fbbf24;
+  --color-warning-light: #2d2010;
+  --color-warning-border: #5c4a15;
+
+  --color-error: #fca5a5;
+  --color-error-hover: #f87171;
+  --color-error-light: #2d1515;
+  --color-error-border: #5c2020;
+
+  --color-info: #67c7e0;
+  --color-info-light: #0d1f2d;
+
+  --color-badge-pending-bg: #2e1065;
+  --color-badge-pending-text: #c4b5fd;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-status-error: 0 2px 8px rgba(252, 165, 165, 0.06);
+  --shadow-status-success: 0 2px 8px rgba(110, 231, 183, 0.05);
+  --shadow-status-warning: 0 2px 8px rgba(252, 211, 77, 0.06);
 }

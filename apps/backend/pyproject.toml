@@ -16,10 +16,14 @@ dependencies = [
     "pydantic>=2.10,<3.0",
     "pydantic-settings>=2.7,<3.0",
     "alembic>=1.14,<2.0",
+
     "python-dotenv>=1.0,<2.0",
     "passlib[bcrypt]>=1.7,<2.0",
     "bcrypt>=4.0,<5.0",
     "python-jose[cryptography]>=3.3,<4.0",
+
+    "cryptography>=43,<44",
+
 ]
 
 [project.optional-dependencies]
@@ -34,6 +38,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+sawakli = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
@@ -46,10 +53,22 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# These embed Ahmed Ibrahim's DATA-01 SQL verbatim (see each file's docstring) —
+# byte-for-byte fidelity to the original, verified-working SQL matters more here
+# than Python line-length style, and the SQL includes long seed-data rows that
+# were never meant to be read as Python.
+"alembic/versions/*.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
 
+
 [[tool.mypy.overrides]]
 module = ["jose", "jose.*", "passlib", "passlib.*"]
 ignore_missing_imports = true
+
+mypy_path = "src"
+explicit_package_bases = true
+
