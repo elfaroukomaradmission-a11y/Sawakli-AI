@@ -7,8 +7,7 @@ from sqlalchemy import create_engine, pool
 
 from alembic import context
 
-# Prefer the repo-root .env (next to docker-compose.yml). A nearer
-# apps/backend/.env previously forced port 5432 and skipped Docker on 5433.
+# Prefer the repo-root .env (next to docker-compose.yml).
 _env_file: Path | None = None
 for parent in Path(__file__).resolve().parents:
     if (parent / "docker-compose.yml").is_file():
@@ -25,7 +24,7 @@ if _env_file is None:
             break
 
 if _env_file is not None:
-    load_dotenv(_env_file, override=True)
+    load_dotenv(_env_file, override=False)
 
 import sawakli.db.models  # noqa: E402, F401
 from sawakli.db.session import Base  # noqa: E402
@@ -33,12 +32,18 @@ from sawakli.db.session import Base  # noqa: E402
 config = context.config
 
 file_values = dotenv_values(_env_file) if _env_file is not None else {}
-database_url = file_values.get("DATABASE_URL") or os.getenv("DATABASE_URL")
+
+# Environment variables override .env values.
+# This allows tests/CI to provide their own DATABASE_URL.
+database_url = os.getenv("DATABASE_URL") or file_values.get("DATABASE_URL")
+print("ALEMBIC DATABASE:", database_url)
+
 if not database_url:
     raise RuntimeError(
         "DATABASE_URL is not set. Copy .env.example to .env at the repo root "
         "and point it at the Postgres instance you want Alembic to use."
     )
+
 config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:

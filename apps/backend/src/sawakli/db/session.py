@@ -22,9 +22,9 @@ if _env_file is None:
             break
 
 if _env_file is not None:
-    load_dotenv(_env_file, override=True)
+    load_dotenv(_env_file, override=False)
 else:
-    load_dotenv(override=True)
+    load_dotenv(override=False)
 
 
 class Base(DeclarativeBase):

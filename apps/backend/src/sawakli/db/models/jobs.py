@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -27,11 +27,25 @@ class Job(Base):
         PGUUID(as_uuid=True),
     )
     status: Mapped[str] = mapped_column(
-        String,
+        Enum(
+            "PENDING",
+            "RUNNING",
+            "SUCCESS",
+            "FAILED",
+            "CANCELLED",
+            "PARTIAL_SUCCESS",
+            name="job_status_enum",
+            create_type=False,
+        ),
         nullable=False,
     )
     priority: Mapped[str] = mapped_column(
-        String,
+        Enum(
+            "HIGH",
+            "LOW",
+            name="job_priority_enum",
+            create_type=False,
+        ),
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(

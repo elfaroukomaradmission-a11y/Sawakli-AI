@@ -20,12 +20,12 @@ _REPO_ROOT = next(
 )
 _BACKEND_DIR = _REPO_ROOT / "apps" / "backend"
 
-load_dotenv(_REPO_ROOT / ".env", override=False)
 os.environ.setdefault("JWT_SECRET", "change-this-to-a-real-secret")
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+psycopg://postgres:change-me@localhost:5433/sawakli",
+    "postgresql+psycopg://postgres:change-me@localhost:5434/sawakli_test",
 )
+load_dotenv(_REPO_ROOT / ".env", override=False)
 
 
 @pytest.fixture(scope="session")
@@ -115,8 +115,8 @@ def insert_job(db_session: Session, organization_id: UUID) -> UUID:
             organization_id=organization_id,
             campaign_ids=None,
             triggered_by_user_id=None,
-            status="queued",
-            priority="normal",
+            status="PENDING",
+            priority="LOW",
             created_at=datetime.now(UTC),
             claimed_at=None,
             model_run_id=None,
