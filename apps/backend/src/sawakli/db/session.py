@@ -1,12 +1,30 @@
 import os
 from collections.abc import Generator
+from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-# Load database configuration from the project's root .env file.
-load_dotenv()
+_env_file: Path | None = None
+for parent in Path(__file__).resolve().parents:
+    if (parent / "docker-compose.yml").is_file():
+        candidate = parent / ".env"
+        if candidate.is_file():
+            _env_file = candidate
+        break
+
+if _env_file is None:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / ".env"
+        if candidate.is_file():
+            _env_file = candidate
+            break
+
+if _env_file is not None:
+    load_dotenv(_env_file, override=True)
+else:
+    load_dotenv(override=True)
 
 
 class Base(DeclarativeBase):
@@ -15,7 +33,7 @@ class Base(DeclarativeBase):
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg://postgres:change-me@localhost:5432/sawakli",
+    "postgresql+psycopg://postgres:change-me@localhost:5433/sawakli",
 )
 
 

@@ -44,9 +44,13 @@ jobs:
       - name: Type check
         run: mypy src
       - name: Tests
+        env:
+          JWT_SECRET: change-this-to-a-real-secret
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli
         run: pytest
       - name: Verify migrations
         env:
+          JWT_SECRET: change-this-to-a-real-secret
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli
         run: alembic upgrade head
 

@@ -23,6 +23,8 @@ services:
     container_name: sawakli-api
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-sawakli}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-real-secret}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -42,6 +44,8 @@ services:
     container_name: sawakli-worker
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-sawakli}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-real-secret}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
     command: ["python", "-m", "sawakli.worker"]
     depends_on:
       postgres:
