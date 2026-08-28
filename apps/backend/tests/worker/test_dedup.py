@@ -1,0 +1,168 @@
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
+
+import pytest
+from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from sawakli.db.models.jobs import Job
+from sawakli.db.models.organization import Organization
+
+
+def _create_test_org(db: Session, name: str = "Test Dedup Org") -> UUID:
+    org_id = uuid4()
+    org = Organization(id=org_id, name=name)
+    db.add(org)
+    db.commit()
+    return org_id
+
+
+def test_duplicate_pending_jobs_for_same_org_rejected(db_session: Session) -> None:
+    """Inserting a second PENDING job for the same organization raises IntegrityError."""
+    org_id = _create_test_org(db_session)
+    now = datetime.now(UTC)
+
+    try:
+        # First job: PENDING -> succeeds
+        job1 = Job(
+            id=uuid4(),
+            organization_id=org_id,
+            status="PENDING",
+            priority="LOW",
+            created_at=now,
+        )
+        db_session.add(job1)
+        db_session.commit()
+
+        # Second job: PENDING for same org -> IntegrityError
+        job2 = Job(
+            id=uuid4(),
+            organization_id=org_id,
+            status="PENDING",
+            priority="HIGH",
+            created_at=now,
+        )
+        db_session.add(job2)
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+
+        db_session.rollback()
+    finally:
+        db_session.execute(delete(Job).where(Job.organization_id == org_id))
+        db_session.execute(delete(Organization).where(Organization.id == org_id))
+        db_session.commit()
+
+
+def test_duplicate_pending_and_running_jobs_for_same_org_rejected(
+    db_session: Session,
+) -> None:
+    """Cannot insert a PENDING job when a RUNNING job is already in flight for that org."""
+    org_id = _create_test_org(db_session)
+    now = datetime.now(UTC)
+
+    try:
+        # First job: RUNNING -> succeeds
+        job1 = Job(
+            id=uuid4(),
+            organization_id=org_id,
+            status="RUNNING",
+            priority="LOW",
+            created_at=now,
+        )
+        db_session.add(job1)
+        db_session.commit()
+
+        # Second job: PENDING for same org -> IntegrityError
+        job2 = Job(
+            id=uuid4(),
+            organization_id=org_id,
+            status="PENDING",
+            priority="LOW",
+            created_at=now,
+        )
+        db_session.add(job2)
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+
+        db_session.rollback()
+    finally:
+        db_session.execute(delete(Job).where(Job.organization_id == org_id))
+        db_session.execute(delete(Organization).where(Organization.id == org_id))
+        db_session.commit()
+
+
+def test_multiple_orgs_can_have_concurrent_inflight_jobs(
+    db_session: Session,
+) -> None:
+    """Distinct organizations can each have active in-flight jobs without conflicting."""
+    org1_id = _create_test_org(db_session, name="Org 1")
+    org2_id = _create_test_org(db_session, name="Org 2")
+    now = datetime.now(UTC)
+
+    try:
+        job1 = Job(
+            id=uuid4(),
+            organization_id=org1_id,
+            status="PENDING",
+            priority="LOW",
+            created_at=now,
+        )
+        job2 = Job(
+            id=uuid4(),
+            organization_id=org2_id,
+            status="PENDING",
+            priority="HIGH",
+            created_at=now,
+        )
+        db_session.add_all([job1, job2])
+        db_session.commit()
+
+        assert job1.id is not None
+        assert job2.id is not None
+    finally:
+        db_session.execute(delete(Job).where(Job.organization_id.in_([org1_id, org2_id])))
+        db_session.execute(delete(Organization).where(Organization.id.in_([org1_id, org2_id])))
+        db_session.commit()
+
+
+@pytest.mark.parametrize("terminal_status", ["SUCCESS", "FAILED", "CANCELLED", "ERROR"])
+def test_new_job_allowed_after_previous_job_inactive(
+    db_session: Session,
+    terminal_status: str,
+) -> None:
+    """A new PENDING job can be created after the prior job is no longer active.
+
+    Verified for SUCCESS, FAILED, CANCELLED, and ERROR.
+    """
+    org_id = _create_test_org(db_session)
+    now = datetime.now(UTC)
+
+    try:
+        # Prior job in inactive / terminal status
+        prior_job = Job(
+            id=uuid4(),
+            organization_id=org_id,
+            status=terminal_status,
+            priority="LOW",
+            created_at=now,
+        )
+        db_session.add(prior_job)
+        db_session.commit()
+
+        # Next job in PENDING status succeeds
+        next_job = Job(
+            id=uuid4(),
+            organization_id=org_id,
+            status="PENDING",
+            priority="HIGH",
+            created_at=now,
+        )
+        db_session.add(next_job)
+        db_session.commit()
+
+        assert next_job.id is not None
+    finally:
+        db_session.execute(delete(Job).where(Job.organization_id == org_id))
+        db_session.execute(delete(Organization).where(Organization.id == org_id))
+        db_session.commit()

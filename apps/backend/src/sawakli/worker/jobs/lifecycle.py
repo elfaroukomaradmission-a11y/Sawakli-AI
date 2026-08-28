@@ -17,6 +17,12 @@ def transition_job_status(
             JobStatus.FAILED,
             JobStatus.PARTIAL_SUCCESS,
             JobStatus.CANCELLED,
+            JobStatus.ERROR,
+        },
+        JobStatus.ERROR: {
+            JobStatus.PENDING,
+            JobStatus.FAILED,
+            JobStatus.CANCELLED,
         },
         JobStatus.SUCCESS: set(),
         JobStatus.FAILED: set(),
