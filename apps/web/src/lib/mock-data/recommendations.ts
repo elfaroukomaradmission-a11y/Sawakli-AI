@@ -3,9 +3,11 @@ import type { Recommendation } from '@/types'
 export const mockRecommendations: Recommendation[] = [
   {
     id: 'rec-001',
+    model_run_id: 'run-001',
+    organization_id: 'org-001',
     campaign_id: 'camp-001',
     campaign_name: 'Summer Sale Campaign',
-    title: 'Reduce CPA by 15%',
+    source_anomaly_id: 'anom-001',
     problem:
       'Summer Sale Campaign CPA has risen 45% above the 14-day average, reaching 166.6 EGP vs the normal 115 EGP. This is consuming budget without proportional conversions.',
     evidence: [
@@ -15,15 +17,19 @@ export const mockRecommendations: Recommendation[] = [
     ],
     suggested_action:
       'Reduce bids on underperforming ad groups by 20% and pause keywords with CPA above 200 EGP. Reallocate 15% of budget to the retargeting campaign which has a 90.3 EGP CPA.',
-    confidence: 82,
-    risk: 'medium',
+    confidence_score: 0.82,
+    risk_rating: 'medium',
+    severity: 3,
     status: 'pending',
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'rec-002',
+    model_run_id: 'run-001',
+    organization_id: 'org-001',
     campaign_id: 'camp-002',
     campaign_name: 'Brand Awareness',
-    title: 'Reallocate budget to top performers',
+    source_anomaly_id: 'anom-002',
     problem:
       'Brand Awareness campaign CTR has declined 12% week-over-week, indicating ad fatigue in the target audience.',
     evidence: [
@@ -33,15 +39,18 @@ export const mockRecommendations: Recommendation[] = [
     ],
     suggested_action:
       'Refresh ad creatives and reduce daily budget by 10%. Shift freed budget to Retargeting — Cart Abandoners which shows strong ROAS of 4.5.',
-    confidence: 78,
-    risk: 'medium',
+    confidence_score: 0.78,
+    risk_rating: 'medium',
+    severity: 2,
     status: 'pending',
+    created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'rec-003',
+    model_run_id: 'run-001',
+    organization_id: 'org-001',
     campaign_id: 'camp-003',
     campaign_name: 'Retargeting — Cart Abandoners',
-    title: 'Increase bid on top-converting keywords',
     problem:
       'Retargeting campaign is impression-limited on its best-performing keywords, missing potential conversions.',
     evidence: [
@@ -51,8 +60,10 @@ export const mockRecommendations: Recommendation[] = [
     ],
     suggested_action:
       'Increase bids by 15% on the top 5 converting keywords to capture additional impression share.',
-    confidence: 75,
-    risk: 'low',
+    confidence_score: 0.75,
+    risk_rating: 'low',
+    severity: 1,
     status: 'approved',
+    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
   },
 ]

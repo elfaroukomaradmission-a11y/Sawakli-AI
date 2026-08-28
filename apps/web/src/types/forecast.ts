@@ -1,18 +1,13 @@
-export type ActualPoint = {
-  date: string
-  value: number
-}
-
-export type ForecastPoint = {
-  date: string
-  predicted_value: number
-  confidence_low: number
-  confidence_high: number
-}
-
 export type Forecast = {
+  id: string
+  model_run_id: string
+  organization_id: string
   campaign_id: string
-  metric: string
-  actual: ActualPoint[]
-  forecast: ForecastPoint[]
+  metric_name: string
+  forecast_date: string
+  value: number
+  ci_lower?: number
+  ci_upper?: number
+  model_used?: string
+  created_at: string
 }

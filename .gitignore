@@ -66,5 +66,6 @@ desktop.ini
 apps/backend/.pytest_cache/
 apps/backend/.ruff_cache/
 apps/web/.next/
+.claude/
 # Python packaging artifacts
 *.egg-info/

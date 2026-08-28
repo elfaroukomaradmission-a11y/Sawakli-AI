@@ -16,7 +16,9 @@ import { getSession } from '@/lib/mock-auth'
 import { useRecommendations } from '@/hooks/useRecommendations'
 import styles from './sidebar.module.css'
 
-const emptySubscribe = () => () => {}
+const subscribe = () => () => {}
+const getTrue = () => true
+const getFalse = () => false
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', route: '/dashboard' },
@@ -28,8 +30,8 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
-  const session = useSyncExternalStore(emptySubscribe, () => getSession(), () => null)
+  const mounted = useSyncExternalStore(subscribe, getTrue, getFalse)
+  const session = mounted ? getSession() : null
 
   const orgId = session?.organization.id ?? ''
   const { data: recommendations } = useRecommendations(orgId)

@@ -163,9 +163,11 @@ export default function DashboardPage() {
                   <AlertTriangle style={{ width: 16, height: 16 }} />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 'var(--font-weight-semibold)', marginBottom: 2 }}>{a.title}</div>
+                  <div style={{ fontSize: 13, fontWeight: 'var(--font-weight-semibold)', marginBottom: 2 }}>
+                    {a.metric_name} anomaly ({a.direction})
+                  </div>
                   <div style={{ fontSize: 12, lineHeight: 1.4, color: 'var(--color-text-muted)' }}>
-                    {a.description}
+                    Score: {a.anomaly_score.toFixed(2)} &middot; Severity: {a.severity}
                   </div>
                   <div style={{ marginTop: 4, fontSize: 11, color: 'var(--color-text-faint)' }}>
                     {a.detected_at}
@@ -220,17 +222,17 @@ export default function DashboardPage() {
                     flexShrink: 0,
                     borderRadius: '50%',
                     background:
-                      r.risk === 'high'
+                      r.risk_rating === 'high'
                         ? 'var(--color-error)'
-                        : r.risk === 'medium'
+                        : r.risk_rating === 'medium'
                           ? 'var(--color-warning)'
                           : 'var(--color-success)',
                   }}
                 />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 'var(--font-weight-semibold)' }}>{r.title}</div>
+                  <div style={{ fontSize: 13, fontWeight: 'var(--font-weight-semibold)' }}>{r.problem}</div>
                   <div style={{ marginTop: 2, fontSize: 12, color: 'var(--color-text-muted)' }}>
-                    {r.campaign_name} · {r.confidence}% confidence
+                    {r.campaign_name} · {Math.round(r.confidence_score * 100)}% confidence
                   </div>
                 </div>
               </Link>

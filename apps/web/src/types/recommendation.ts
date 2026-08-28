@@ -1,20 +1,29 @@
-export type RecommendationStatus = 'pending' | 'approved' | 'rejected'
+export type RecommendationStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'marked_done'
+  | 'needs_review'
 
-export type RecommendationRisk = 'high' | 'medium' | 'low'
+export type RiskRating = 'high' | 'medium' | 'low'
 
 export type RecommendationDecision = 'approved' | 'rejected'
 
 export type Recommendation = {
   id: string
+  model_run_id: string
+  organization_id: string
   campaign_id: string
   campaign_name: string
-  title: string
+  source_anomaly_id?: string
   problem: string
   evidence: string[]
   suggested_action: string
-  confidence: number
-  risk: RecommendationRisk
+  confidence_score: number
+  risk_rating: RiskRating
+  severity?: number
   status: RecommendationStatus
+  created_at: string
 }
 
 export type DecisionResponse = {
