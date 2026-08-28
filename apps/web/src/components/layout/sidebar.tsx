@@ -1,6 +1,6 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -12,11 +12,9 @@ import {
   Brain,
   User,
 } from 'lucide-react'
-import { getSession } from '@/lib/mock-auth'
+import { getSession, type Session } from '@/lib/mock-auth'
 import { useRecommendations } from '@/hooks/useRecommendations'
 import styles from './sidebar.module.css'
-
-const emptySubscribe = () => () => {}
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', route: '/dashboard' },
@@ -28,8 +26,13 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
-  const session = useSyncExternalStore(emptySubscribe, () => getSession(), () => null)
+  const [mounted, setMounted] = useState(false)
+  const [session, setSessionState] = useState<Session | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+    setSessionState(getSession())
+  }, [])
 
   const orgId = session?.organization.id ?? ''
   const { data: recommendations } = useRecommendations(orgId)

@@ -1,15 +1,17 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
 import styles from './topbar.module.css'
 
-const emptySubscribe = () => () => {}
-
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   if (!mounted) return <div style={{ width: 32, height: 32 }} />
 
