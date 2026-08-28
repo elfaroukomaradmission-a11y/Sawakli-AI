@@ -6,6 +6,7 @@ class JobStatus(StrEnum):
     RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    ERROR = "ERROR"
     PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
     CANCELLED = "CANCELLED"
 

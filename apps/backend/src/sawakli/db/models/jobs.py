@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Enum
+from sqlalchemy import DateTime, Enum, Integer
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -34,6 +34,7 @@ class Job(Base):
             "FAILED",
             "CANCELLED",
             "PARTIAL_SUCCESS",
+            "ERROR",
             name="job_status_enum",
             create_type=False,
         ),
@@ -55,6 +56,28 @@ class Job(Base):
     claimed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    retry_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    max_retries: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=3,
+        server_default="3",
+    )
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    timeout_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=300,
+        server_default="300",
     )
     model_run_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),

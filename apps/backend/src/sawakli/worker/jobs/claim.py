@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from sqlalchemy import Select, case, select
 
 from sawakli.db.models.jobs import Job
@@ -12,7 +14,10 @@ def claim_next_job() -> Select[tuple[Job]]:
 
     return (
         select(Job)
-        .where(Job.status == "PENDING")
+        .where(
+            Job.status == "PENDING",
+            (Job.next_retry_at.is_(None)) | (Job.next_retry_at <= datetime.now(UTC)),
+        )
         .order_by(
             priority_rank.asc(),
             Job.created_at.asc(),
