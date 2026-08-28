@@ -17,13 +17,23 @@ function deleteCookie(name: string) {
   document.cookie = `${name}=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT`
 }
 
+let _cachedRaw: string | null = null
+let _cachedSession: Session | null = null
+
 export function getSession(): Session | null {
   if (typeof window === 'undefined') return null
   const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return null
+  if (raw === _cachedRaw) return _cachedSession
+  _cachedRaw = raw
+  if (!raw) {
+    _cachedSession = null
+    return null
+  }
   try {
-    return JSON.parse(raw) as Session
+    _cachedSession = JSON.parse(raw) as Session
+    return _cachedSession
   } catch {
+    _cachedSession = null
     return null
   }
 }
