@@ -7,10 +7,10 @@ import type { Campaign } from '@/types'
 
 function platformBadge(platform: string) {
   const styles =
-    platform === 'Google Ads'
+    platform === 'google'
       ? { background: 'var(--color-badge-google-bg)', color: 'var(--color-badge-google-text)' }
       : { background: 'var(--color-accent-light)', color: 'var(--color-accent)' }
-  const label = platform === 'Google Ads' ? 'Google' : 'Meta'
+  const label = platform === 'google' ? 'Google' : 'Meta'
   return (
     <span className="badge" style={styles}>
       {label}
@@ -22,9 +22,10 @@ function statusBadge(status: string) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
     active: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Active' },
     paused: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', label: 'Paused' },
-    ended: { bg: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', label: 'Ended' },
+    removed: { bg: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', label: 'Removed' },
+    unknown: { bg: 'var(--color-surface-raised)', color: 'var(--color-text-faint)', label: 'Unknown' },
   }
-  const s = map[status] ?? map.ended
+  const s = map[status] ?? map.unknown
   return (
     <span className="badge" style={{ background: s.bg, color: s.color }}>
       {s.label}

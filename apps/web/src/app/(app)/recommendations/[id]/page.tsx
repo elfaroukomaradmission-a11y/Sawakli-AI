@@ -39,7 +39,7 @@ export default function RecommendationDetailPage() {
           Recommendations
         </Link>
         <span>/</span>
-        <span>{rec.title}</span>
+        <span>{rec.problem.slice(0, 60)}{rec.problem.length > 60 ? '...' : ''}</span>
       </div>
 
       {/* Main card */}
@@ -51,24 +51,24 @@ export default function RecommendationDetailPage() {
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="badge" style={{ background: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
-              {rec.confidence}% confidence
+              {Math.round(rec.confidence_score * 100)}% confidence
             </span>
             <span
               className="badge"
               style={{
-                background: rec.risk === 'high' ? 'var(--color-error-light)' : rec.risk === 'medium' ? 'var(--color-warning-light)' : 'var(--color-success-light)',
-                color: rec.risk === 'high' ? 'var(--color-error)' : rec.risk === 'medium' ? 'var(--color-warning)' : 'var(--color-success)',
+                background: rec.risk_rating === 'high' ? 'var(--color-error-light)' : rec.risk_rating === 'medium' ? 'var(--color-warning-light)' : 'var(--color-success-light)',
+                color: rec.risk_rating === 'high' ? 'var(--color-error)' : rec.risk_rating === 'medium' ? 'var(--color-warning)' : 'var(--color-success)',
                 textTransform: 'capitalize',
               }}
             >
-              {rec.risk} risk
+              {rec.risk_rating} risk
             </span>
           </div>
         </div>
 
         {/* Title */}
         <h2 style={{ fontSize: 17, fontWeight: 'var(--font-weight-bold)', lineHeight: 1.35, letterSpacing: '-0.01em', marginBottom: 18 }}>
-          {rec.title}
+          {rec.problem}
         </h2>
 
         {/* Structured argument */}
@@ -131,12 +131,20 @@ export default function RecommendationDetailPage() {
           <span
             className="badge"
             style={{
-              background: rec.status === 'approved' ? 'var(--color-success-light)' : 'var(--color-error-light)',
-              color: rec.status === 'approved' ? 'var(--color-success)' : 'var(--color-error)',
+              background: (rec.status === 'approved' || rec.status === 'marked_done')
+                ? 'var(--color-success-light)'
+                : rec.status === 'needs_review'
+                  ? 'var(--color-warning-light)'
+                  : 'var(--color-error-light)',
+              color: (rec.status === 'approved' || rec.status === 'marked_done')
+                ? 'var(--color-success)'
+                : rec.status === 'needs_review'
+                  ? 'var(--color-warning)'
+                  : 'var(--color-error)',
               textTransform: 'capitalize',
             }}
           >
-            {rec.status}
+            {rec.status.replace(/_/g, ' ')}
           </span>
         )}
       </div>
@@ -151,29 +159,17 @@ export default function RecommendationDetailPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             {simulations.map((s) => (
               <div
-                key={s.scenario}
+                key={s.scenario_type}
                 style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', padding: 16 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 'var(--font-weight-semibold)', textTransform: 'capitalize', marginBottom: 8 }}>
-                  {s.scenario.replace(/_/g, ' ')}
+                  {s.scenario_type.replace(/_/g, ' ')}
                 </div>
-                <div style={{ fontSize: 12, lineHeight: 1.4, color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                  Spend: {s.expected_effect.monthly_spend_change > 0 ? '+' : ''}{s.expected_effect.monthly_spend_change.toLocaleString()} EGP
-                  {' · '}Conv: {s.expected_effect.expected_conversion_change > 0 ? '+' : ''}{s.expected_effect.expected_conversion_change}%
-                  {' · '}CPA: {s.expected_effect.expected_cpa_change > 0 ? '+' : ''}{s.expected_effect.expected_cpa_change}%
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {s.assumptions.map((a, i) => (
-                    <span
-                      key={i}
-                      style={{ borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 'var(--font-weight-medium)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)' }}
-                    >
-                      {a}
-                    </span>
-                  ))}
-                </div>
-                <div style={{ marginTop: 8, fontSize: 11, fontWeight: 'var(--font-weight-semibold)', textTransform: 'capitalize', color: 'var(--color-text-faint)' }}>
-                  Risk: {s.risk}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, lineHeight: 1.4, color: 'var(--color-text-muted)' }}>
+                  <span>Spend: {s.projected_spend.toLocaleString()} EGP</span>
+                  <span>Conversions: {s.projected_conversions.toLocaleString()}</span>
+                  <span>CPA: {s.projected_cpa.toFixed(1)} EGP</span>
+                  <span>ROAS: {s.projected_roas.toFixed(1)}x</span>
                 </div>
               </div>
             ))}

@@ -48,8 +48,8 @@ export const DEMO_SESSION: Session = {
   organization: {
     id: 'org-001',
     name: 'Fashion Brand X',
-    industry: 'Fashion e-commerce',
-    currency: 'EGP',
+    plan: 'pro',
+    created_at: '2026-01-15T10:00:00Z',
   },
   access_token: 'demo-token-sawakli-2026',
 }

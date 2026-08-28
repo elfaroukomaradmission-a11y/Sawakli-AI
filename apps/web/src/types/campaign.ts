@@ -1,15 +1,19 @@
-export type CampaignPlatform = 'Google Ads' | 'Meta Ads'
+export type CampaignPlatform = 'meta' | 'google'
 
-export type CampaignStatus = 'active' | 'paused' | 'ended'
+export type CampaignStatus = 'active' | 'paused' | 'removed' | 'unknown'
 
 export type HealthStatus = 'strong' | 'average' | 'weak'
 
 export type Campaign = {
   id: string
+  organization_id: string
   name: string
   platform: CampaignPlatform
-  status: CampaignStatus
   objective: string
+  status: CampaignStatus
+  budget?: number
+  start_date?: string
+  end_date?: string
   spend: number
   clicks: number
   conversions: number

@@ -8,18 +8,17 @@ export type {
   TimeSeriesPoint,
   CampaignDetails,
 } from './campaign'
-export type { Anomaly, AnomalySeverity } from './anomaly'
+export type { Anomaly, AnomalySeverity, AnomalyDirection } from './anomaly'
 export type {
   Recommendation,
   RecommendationStatus,
-  RecommendationRisk,
+  RiskRating,
   RecommendationDecision,
   DecisionResponse,
 } from './recommendation'
-export type { Forecast, ActualPoint, ForecastPoint } from './forecast'
+export type { Forecast } from './forecast'
 export type {
   Simulation,
   SimulationScenario,
-  ExpectedEffect,
 } from './simulation'
-export type { Job, JobStatus } from './job'
+export type { Job, JobStatus, JobPriority } from './job'

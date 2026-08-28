@@ -117,9 +117,11 @@ export default function CampaignDetailPage() {
                   <AlertTriangle style={{ width: 16, height: 16 }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 'var(--font-weight-semibold)' }}>{a.title}</div>
+                  <div style={{ fontSize: 13, fontWeight: 'var(--font-weight-semibold)' }}>
+                    {a.metric_name} anomaly ({a.direction})
+                  </div>
                   <div style={{ marginTop: 2, fontSize: 12, lineHeight: 1.4, color: 'var(--color-text-muted)' }}>
-                    {a.description}
+                    Score: {a.anomaly_score.toFixed(2)} &middot; Severity: {a.severity}
                   </div>
                 </div>
               </div>

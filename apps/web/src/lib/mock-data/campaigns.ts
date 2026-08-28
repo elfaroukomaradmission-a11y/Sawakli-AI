@@ -3,8 +3,9 @@ import type { Campaign } from '@/types'
 export const mockCampaigns: Campaign[] = [
   {
     id: 'camp-001',
+    organization_id: 'org-001',
     name: 'Summer Sale Campaign',
-    platform: 'Google Ads',
+    platform: 'google',
     status: 'active',
     objective: 'Conversions',
     spend: 18500,
@@ -18,8 +19,9 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'camp-002',
+    organization_id: 'org-001',
     name: 'Brand Awareness',
-    platform: 'Meta Ads',
+    platform: 'meta',
     status: 'active',
     objective: 'Reach',
     spend: 12000,
@@ -33,8 +35,9 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'camp-003',
+    organization_id: 'org-001',
     name: 'Retargeting — Cart Abandoners',
-    platform: 'Google Ads',
+    platform: 'google',
     status: 'active',
     objective: 'Conversions',
     spend: 6500,
@@ -48,8 +51,9 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'camp-004',
+    organization_id: 'org-001',
     name: 'New Collection Launch',
-    platform: 'Meta Ads',
+    platform: 'meta',
     status: 'paused',
     objective: 'Traffic',
     spend: 4200,
@@ -63,9 +67,10 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'camp-005',
+    organization_id: 'org-001',
     name: 'Holiday Promo 2025',
-    platform: 'Google Ads',
-    status: 'ended',
+    platform: 'google',
+    status: 'removed',
     objective: 'Conversions',
     spend: 1300,
     clicks: 220,

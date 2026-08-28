@@ -61,12 +61,8 @@ export default function SettingsPage() {
             <div style={valueStyle}>{session?.organization.name ?? '—'}</div>
           </div>
           <div>
-            <div style={fieldStyle}>Industry</div>
-            <div style={valueStyle}>{session?.organization.industry ?? '—'}</div>
-          </div>
-          <div>
-            <div style={fieldStyle}>Currency</div>
-            <div style={valueStyle}>{session?.organization.currency ?? '—'}</div>
+            <div style={fieldStyle}>Plan</div>
+            <div style={{ ...valueStyle, textTransform: 'capitalize' }}>{session?.organization.plan ?? '—'}</div>
           </div>
         </div>
       </div>

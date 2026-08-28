@@ -11,6 +11,8 @@ function statusBadge(status: string) {
     pending: { bg: 'var(--color-badge-pending-bg)', color: 'var(--color-badge-pending-text)', label: 'Pending' },
     approved: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Approved' },
     rejected: { bg: 'var(--color-error-light)', color: 'var(--color-error)', label: 'Rejected' },
+    marked_done: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Done' },
+    needs_review: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', label: 'Review' },
   }
   const s = map[status] ?? map.pending
   return (
@@ -73,16 +75,16 @@ export default function RecommendationsPage() {
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="badge" style={{ background: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
-                  {r.confidence}% confidence
+                  {Math.round(r.confidence_score * 100)}% confidence
                 </span>
-                {riskBadge(r.risk)}
+                {riskBadge(r.risk_rating)}
               </div>
             </div>
-            <div style={{ fontSize: 17, fontWeight: 'var(--font-weight-bold)', lineHeight: 1.35, letterSpacing: '-0.01em', marginBottom: 8 }}>
-              {r.title}
+            <div style={{ fontSize: 15, fontWeight: 'var(--font-weight-bold)', lineHeight: 1.35, letterSpacing: '-0.01em', marginBottom: 8 }}>
+              {r.problem}
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--color-text-muted)' }}>
-              {r.problem}
+              {r.suggested_action}
             </div>
           </Link>
         ))}
