@@ -105,3 +105,77 @@ connector_tokens_table = sa.Table(
     sa.Column("expires_at", TIMESTAMP(timezone=True), nullable=True),
     sa.Column("last_refreshed_at", TIMESTAMP(timezone=True), nullable=True),
 )
+
+
+platform_enum = sa.Enum(
+    "meta",
+    "google",
+    name="platform_enum",
+    create_type=False,
+)
+
+campaign_status_enum = sa.Enum(
+    "active",
+    "paused",
+    "removed",
+    "unknown",
+    name="campaign_status_enum",
+    create_type=False,
+)
+
+
+campaigns_table = sa.Table(
+    "campaigns",
+    metadata,
+    sa.Column("id", UUID(as_uuid=True), primary_key=True),
+    sa.Column("organization_id", UUID(as_uuid=True), nullable=False),
+    sa.Column("data_source_id", UUID(as_uuid=True), nullable=False),
+    sa.Column("external_id", sa.Text),
+    sa.Column("name", sa.Text, nullable=False),
+    sa.Column("platform", platform_enum, nullable=False),
+    sa.Column("objective", sa.Text),
+    sa.Column("status", campaign_status_enum),
+    sa.Column("budget", sa.Numeric),
+    sa.Column("start_date", sa.Date),
+    sa.Column("end_date", sa.Date),
+    sa.Column(
+        "updated_at",
+        TIMESTAMP(timezone=False),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+)
+
+
+ad_groups_table = sa.Table(
+    "ad_groups",
+    metadata,
+    sa.Column("id", UUID(as_uuid=True), primary_key=True),
+    sa.Column("campaign_id", UUID(as_uuid=True), nullable=False),
+    sa.Column("external_id", sa.Text),
+    sa.Column("name", sa.Text),
+    sa.Column("status", campaign_status_enum),
+)
+
+
+ads_table = sa.Table(
+    "ads",
+    metadata,
+    sa.Column("id", UUID(as_uuid=True), primary_key=True),
+    sa.Column("ad_group_id", UUID(as_uuid=True), nullable=False),
+    sa.Column("external_id", sa.Text),
+    sa.Column("name", sa.Text),
+    sa.Column("status", campaign_status_enum),
+)
+
+
+creatives_table = sa.Table(
+    "creatives",
+    metadata,
+    sa.Column("id", UUID(as_uuid=True), primary_key=True),
+    sa.Column("ad_id", UUID(as_uuid=True), nullable=False),
+    sa.Column("external_id", sa.Text),
+    sa.Column("creative_type", sa.String),
+    sa.Column("headline", sa.Text),
+    sa.Column("asset_url", sa.Text),
+)
