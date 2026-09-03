@@ -17,8 +17,8 @@ following the same pattern — one shared, query-only metadata, decoupled
 from Alembic's migration metadata.
 
 Column shapes are copied exactly from Ahmed Ibrahim's DATA-01 deliverable
-(002_backend_tables.sql, 005_connector_tables.sql) — kept in sync with
-alembic/versions/0002_backend_tables.py and 0005_connector_tables.py.
+(002_backend_tables.sql, 003_data_layer_tables.sql, 005_connector_tables.sql) —
+kept in sync with the corresponding migrations under alembic/versions/.
 """
 
 from __future__ import annotations
@@ -178,4 +178,18 @@ creatives_table = sa.Table(
     sa.Column("creative_type", sa.String),
     sa.Column("headline", sa.Text),
     sa.Column("asset_url", sa.Text),
+)
+
+
+daily_metrics_table = sa.Table(
+    "daily_metrics",
+    metadata,
+    sa.Column("organization_id", UUID(as_uuid=True), nullable=False),
+    sa.Column("campaign_id", UUID(as_uuid=True), primary_key=True),
+    sa.Column("date", sa.Date, primary_key=True),
+    sa.Column("spend", sa.Numeric, nullable=False),
+    sa.Column("clicks", sa.Integer, nullable=False),
+    sa.Column("impressions", sa.Integer, nullable=False),
+    sa.Column("conversions", sa.Integer, nullable=False),
+    sa.Column("revenue", sa.Numeric, nullable=False),
 )
