@@ -1,66 +1,99 @@
 services:
-
-  ui:
-    image: sawakli-ui:latest
-    container_name: sawakli-ui
+  postgres:
+    image: postgres:18
+    container_name: sawakli-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sawakli}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
     ports:
-      - "3000:3000"
-    depends_on:
-      - api
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sawakli}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-test:
+    image: postgres:18
+    container_name: sawakli-test-postgres
+    environment:
+      POSTGRES_DB: sawakli_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: change-me
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sawakli_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   api:
-    image: sawakli-api:latest
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
     container_name: sawakli-api
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db-app
-      - worker
-      - connector
-
-  connector:
-    image: sawakli-connector:latest
-    container_name: sawakli-connector
-    depends_on:
-      - db-app
-
-  db-app:
-    image: sawakli-db-app:latest
-    container_name: sawakli-db-app
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: sawakli
-      DB_USER: postgres
-      DB_PASSWORD: change_me
-    depends_on:
-      - db
-
-  db:
-    image: sawakli-db:latest
-    container_name: sawakli-db
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-sawakli}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-real-secret}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
     ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_DB: sawakli
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: change_me
-
-  agent:
-    image: sawakli-agent:latest
-    container_name: sawakli-agent
+      - "${API_PORT:-8000}:8000"
     depends_on:
-      - db-app
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health').status == 200 else sys.exit(1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   worker:
-    image: sawakli-worker:latest
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
     container_name: sawakli-worker
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-sawakli}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-real-secret}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
+    command: ["python", "-m", "sawakli.worker"]
     depends_on:
-      - db-app
-      - connector
-      - agent
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if pathlib.Path('/tmp/worker_heartbeat').exists() else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
 
-networks:
-  default:
-    name: sawakli-network
-    external: true
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: sawakli-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-8000}
+      API_INTERNAL_URL: http://api:8000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  postgres_test_data:

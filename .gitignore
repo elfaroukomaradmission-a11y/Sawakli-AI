@@ -1,61 +1,71 @@
-# =========================
-# Environment & Secrets
-# =========================
+# ============================================================
+# Sawakli AI - Git Ignore
+# ============================================================
+
+# ---------- Environment ----------
 .env
 .env.*
 !.env.example
 
-# =========================
-# Python
-# =========================
+# ---------- Python ----------
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
 
+# Virtual environments
 .venv/
 venv/
 env/
+ENV/
 
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# =========================
-# Next.js / Node.js
-# =========================
+# ---------- Node / Next.js ----------
 node_modules/
 .next/
 out/
 dist/
-build/
+*.tsbuildinfo
+.npm/
+.nyc_output/
+coverage/
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# =========================
-# Docker
-# =========================
+# ---------- Docker ----------
+*.log
 docker-compose.override.yml
 
-# =========================
-# IDE / Editor
-# =========================
-.vscode/
-.idea/
-.vs/
+# ---------- IDE ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 
-# =========================
-# Operating System
-# =========================
+.idea/
+*.iml
+
+# ---------- OS ----------
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# =========================
-# Logs
-# =========================
-*.log
+# ---------- Temporary files ----------
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ---------- Project-specific ----------
+apps/backend/.pytest_cache/
+apps/backend/.ruff_cache/
+apps/web/.next/
+.claude/
+# Python packaging artifacts
+*.egg-info/

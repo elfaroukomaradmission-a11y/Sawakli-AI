@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sawakli-backend"
+version = "0.1.0"
+description = "Sawakli AI backend service"
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.34,<1.0",
+    "sqlalchemy>=2.0,<3.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "pydantic>=2.10,<3.0",
+    "pydantic-settings>=2.7,<3.0",
+    "alembic>=1.14,<2.0",
+
+    "python-dotenv>=1.0,<2.0",
+    "passlib[bcrypt]>=1.7,<2.0",
+    "bcrypt>=4.0,<5.0",
+    "python-jose[cryptography]>=3.3,<4.0",
+
+    "cryptography>=43,<44",
+
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9.0",
+    "pytest-asyncio>=0.25,<1.0",
+    "httpx>=0.28,<1.0",
+    "ruff>=0.9,<1.0",
+    "mypy>=1.14,<2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sawakli = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# These embed Ahmed Ibrahim's DATA-01 SQL verbatim (see each file's docstring) —
+# byte-for-byte fidelity to the original, verified-working SQL matters more here
+# than Python line-length style, and the SQL includes long seed-data rows that
+# were never meant to be read as Python.
+"alembic/versions/*.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+
+[[tool.mypy.overrides]]
+module = ["jose", "jose.*", "passlib", "passlib.*"]
+ignore_missing_imports = true
+
+mypy_path = "src"
+explicit_package_bases = true
+

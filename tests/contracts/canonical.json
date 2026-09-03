@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Sawakli AI canonical contract — single source of truth derived from INT-01 and DATA-01 SQL migrations. Every layer (DB, Backend, UI, AI) must match these definitions.",
+  "version": "1.0.0",
+  "enums": {
+    "platform_enum": ["meta", "google"],
+    "campaign_status_enum": ["active", "paused", "removed", "unknown"],
+    "job_status_enum": ["PENDING", "RUNNING", "SUCCESS", "FAILED", "CANCELLED", "PARTIAL_SUCCESS"],
+    "job_priority_enum": ["HIGH", "LOW"],
+    "anomaly_severity_enum": ["low", "medium", "high"],
+    "anomaly_direction_enum": ["above", "below"],
+    "recommendation_status_enum": ["pending", "approved", "rejected", "marked_done", "needs_review"],
+    "risk_rating_enum": ["low", "medium", "high"],
+    "simulation_scenario_enum": ["budget_decrease_20", "budget_increase_15", "pause"]
+  },
+  "entities": {
+    "organizations": {
+      "source": "002_backend_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "name": { "type": "varchar", "nullable": false },
+        "plan": { "type": "varchar", "nullable": true },
+        "created_at": { "type": "timestamp", "nullable": false }
+      }
+    },
+    "users": {
+      "source": "002_backend_tables.sql + 0010_auth_and_jobs_additions",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "email": { "type": "varchar", "nullable": false },
+        "hashed_password": { "type": "varchar", "nullable": false, "ui_excluded": true },
+        "name": { "type": "varchar", "nullable": false },
+        "created_at": { "type": "timestamp", "nullable": false, "ui_excluded": true }
+      }
+    },
+    "campaigns": {
+      "source": "003_data_layer_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "data_source_id": { "type": "uuid", "nullable": false, "ui_excluded": true },
+        "external_id": { "type": "text", "nullable": true, "ui_excluded": true },
+        "name": { "type": "text", "nullable": false },
+        "platform": { "type": "platform_enum", "nullable": false },
+        "objective": { "type": "text", "nullable": true },
+        "status": { "type": "campaign_status_enum", "nullable": true },
+        "budget": { "type": "numeric", "nullable": true },
+        "start_date": { "type": "date", "nullable": true },
+        "end_date": { "type": "date", "nullable": true },
+        "updated_at": { "type": "timestamp", "nullable": false, "ui_excluded": true }
+      },
+      "computed_fields": {
+        "spend": "SUM(daily_metrics.spend)",
+        "clicks": "SUM(daily_metrics.clicks)",
+        "conversions": "SUM(daily_metrics.conversions)",
+        "ctr": "clicks / impressions",
+        "cpc": "spend / clicks",
+        "cpa": "spend / conversions",
+        "roas": "revenue / spend",
+        "health_status": "AI-computed"
+      }
+    },
+    "jobs": {
+      "source": "002_backend_tables.sql + 0010_auth_and_jobs_additions",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "campaign_ids": { "type": "jsonb", "nullable": true },
+        "triggered_by_user_id": { "type": "uuid", "nullable": true, "ui_excluded": true },
+        "status": { "type": "job_status_enum", "nullable": false },
+        "priority": { "type": "job_priority_enum", "nullable": false },
+        "created_at": { "type": "timestamp", "nullable": false },
+        "model_run_id": { "type": "uuid", "nullable": true, "ui_excluded": true },
+        "claimed_at": { "type": "timestamp", "nullable": true }
+      }
+    },
+    "forecasts": {
+      "source": "004_ai_layer_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "model_run_id": { "type": "uuid", "nullable": false },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "campaign_id": { "type": "uuid", "nullable": false },
+        "metric_name": { "type": "varchar", "nullable": false },
+        "forecast_date": { "type": "date", "nullable": false },
+        "value": { "type": "numeric", "nullable": false },
+        "ci_lower": { "type": "numeric", "nullable": true },
+        "ci_upper": { "type": "numeric", "nullable": true },
+        "model_used": { "type": "varchar", "nullable": true },
+        "created_at": { "type": "timestamp", "nullable": false }
+      }
+    },
+    "anomalies": {
+      "source": "004_ai_layer_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "model_run_id": { "type": "uuid", "nullable": false },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "campaign_id": { "type": "uuid", "nullable": false },
+        "metric_name": { "type": "varchar", "nullable": false },
+        "detected_at": { "type": "timestamp", "nullable": false },
+        "anomaly_score": { "type": "numeric", "nullable": false },
+        "severity": { "type": "anomaly_severity_enum", "nullable": false },
+        "direction": { "type": "anomaly_direction_enum", "nullable": false },
+        "detectors_triggered": { "type": "jsonb", "nullable": true, "ui_excluded": true },
+        "created_at": { "type": "timestamp", "nullable": false }
+      }
+    },
+    "recommendations": {
+      "source": "004_ai_layer_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "model_run_id": { "type": "uuid", "nullable": false },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "campaign_id": { "type": "uuid", "nullable": false },
+        "source_anomaly_id": { "type": "uuid", "nullable": true },
+        "problem": { "type": "text", "nullable": false },
+        "evidence": { "type": "jsonb", "nullable": true },
+        "suggested_action": { "type": "text", "nullable": true },
+        "confidence_score": { "type": "numeric", "nullable": true, "constraints": { "min": 0, "max": 1 } },
+        "risk_rating": { "type": "risk_rating_enum", "nullable": true },
+        "severity": { "type": "integer", "nullable": true, "constraints": { "min": 1, "max": 5 } },
+        "status": { "type": "recommendation_status_enum", "nullable": false },
+        "created_at": { "type": "timestamp", "nullable": false }
+      },
+      "computed_fields": {
+        "campaign_name": "JOIN campaigns.name"
+      }
+    },
+    "action_simulations": {
+      "source": "004_ai_layer_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "recommendation_id": { "type": "uuid", "nullable": false },
+        "scenario_type": { "type": "simulation_scenario_enum", "nullable": false },
+        "projected_spend": { "type": "numeric", "nullable": false, "constraints": { "min": 0 } },
+        "projected_conversions": { "type": "numeric", "nullable": false, "constraints": { "min": 0 } },
+        "projected_cpa": { "type": "numeric", "nullable": false, "constraints": { "min": 0 } },
+        "projected_roas": { "type": "numeric", "nullable": false, "constraints": { "min": 0 } },
+        "created_at": { "type": "timestamp", "nullable": false }
+      }
+    }
+  }
+}

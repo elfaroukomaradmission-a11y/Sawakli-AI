@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: backend-mypy
+        name: Backend mypy
+        entry: mypy
+        language: python
+        additional_dependencies:
+          - mypy>=1.14,<2.0
+        files: ^apps/backend/
+        pass_filenames: false
+        args: [apps/backend/src]
+
+      - id: frontend-lint
+        name: Frontend ESLint
+        entry: npm
+        language: system
+        files: ^apps/web/
+        pass_filenames: false
+        args: [--prefix, apps/web, run, lint]
+
+      - id: frontend-type-check
+        name: Frontend TypeScript
+        entry: npm
+        language: system
+        files: ^apps/web/
+        pass_filenames: false
+        args: [--prefix, apps/web, run, type-check]
