@@ -13,6 +13,9 @@ Create a short-lived branch from `main`:
 
 All changes must be submitted through a pull request.
 
+AI-assisted contributions must follow [`AGENTS.md`](AGENTS.md), including any nested `AGENTS.md`
+that applies to the files being changed. AI-generated work is not exempt from human review.
+
 ## Documentation
 
 Documentation is part of implementation. Read the

@@ -67,5 +67,10 @@ apps/backend/.pytest_cache/
 apps/backend/.ruff_cache/
 apps/web/.next/
 .claude/
+
+# Local AI agent overrides (not repository policy)
+AGENTS.override.md
+**/AGENTS.override.md
+
 # Python packaging artifacts
 *.egg-info/
