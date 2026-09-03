@@ -45,3 +45,13 @@
 
 - [ ] I independently confirmed that code, tests, task documentation, contracts, and ADRs agree
 - [ ] I confirmed that the PR and GitHub documentation provide linkable evidence for Notion
+
+## AI-Assisted Development
+
+<!-- Complete this section when an AI coding agent contributed to the change. -->
+
+- [ ] Applicable `AGENTS.md` instructions were reviewed
+- [ ] AI-generated changes were reviewed by a human
+- [ ] No shared architecture or contract was silently invented
+- [ ] Agent-reported verification reflects commands actually executed
+- [ ] No temporary AI workspace artifacts are included

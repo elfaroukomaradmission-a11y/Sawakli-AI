@@ -10,15 +10,22 @@ if [[ -z "${base_revision}" ]]; then
   exit 2
 fi
 
-mapfile -t changed_files < <(
+if ! changed_output="$(
   git diff --name-only --diff-filter=ACMR "${base_revision}" "${head_revision}"
-)
+)"; then
+  echo "Documentation governance check could not inspect the requested revisions." >&2
+  exit 2
+fi
+
+mapfile -t changed_files < <(printf '%s' "${changed_output}")
 
 implementation_changed=false
 task_documents=()
 
 for file in "${changed_files[@]}"; do
   case "${file}" in
+    AGENTS.md | */AGENTS.md)
+      ;;
     apps/* | agent/* | api/* | connector/* | database/* | infrastructure/* | tests/* | ui/* | worker/* | docker-compose.yml)
       implementation_changed=true
       ;;

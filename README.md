@@ -146,6 +146,13 @@ All of the above run automatically in CI on every push and pull request, alongsi
 
 Sawakli AI follows **GitHub Flow** — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for full details.
 
+### AI-Assisted Contributions
+
+Before using an AI coding agent, read [`AGENTS.md`](./AGENTS.md),
+[`CONTRIBUTING.md`](./CONTRIBUTING.md), and the
+[`Documentation Standard`](./docs/DOCUMENTATION_STANDARD.md). AI-generated changes require the
+same human review, testing, documentation, and verification as any other contribution.
+
 - Branch from `main` using `feat/`, `fix/`, or `chore/` prefixes.
 - All changes go through a pull request — no direct pushes to `main`.
 - CI must pass, and the code must be linted/formatted, before merge.
