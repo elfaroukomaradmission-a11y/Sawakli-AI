@@ -8,6 +8,18 @@ on:
   pull_request:
 
 jobs:
+  documentation-governance:
+    name: Documentation governance
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'documentation-exempt')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check documentation governance
+        run: bash .github/scripts/check-documentation-governance.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
