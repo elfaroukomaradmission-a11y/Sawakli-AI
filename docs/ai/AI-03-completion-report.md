@@ -1,5 +1,97 @@
 # AI-03 Completion Report
 
+> The numbered report below is the authoritative final report. The historical
+> content retained after it records the initial unavailable-toolchain state and
+> is superseded by this report.
+
+## Final Agent Report (Authoritative)
+
+### 1. Branch name
+
+`feature/AI-03-forecasting-module`
+
+### 2. Commit SHA(s)
+
+- `acc0493` — `feat(ai): add AI-03 forecasting contracts and forecasters`
+- `c754beb` — `test(ai): cover AI-03 forecasting behavior`
+- `7e06d5b` — `docs(ai): record AI-03 verification results`
+
+### 3. Files added
+
+- `apps/backend/src/sawakli/ai/forecasting/{engine,evaluation,forecasters,schemas}.py`
+- `apps/backend/tests/unit/ai/test_forecasting.py`
+- `apps/backend/tests/integration/ai/test_forecasting_integration.py`
+- `scripts/ai03_evidence.py`
+- `docs/ai/AI-03-forecasting.md`
+- `docs/ai/AI-03-completion-report.md`
+
+### 4. Files modified
+
+- `.gitignore`
+- `apps/backend/pyproject.toml`
+- `apps/backend/src/sawakli/ai/forecasting/__init__.py`
+
+### 5. Architectural approach
+
+AI-03 consumes AI-01 `FeatureRecord` values and deterministically falls back
+from Random Forest to OLS linear regression to moving average, then an explicit
+`insufficient_history` record. Gaps use last-observed-point semantics without
+fabrication; regression/forest retain actual calendar offsets. Decimal crosses to
+float only internally inside the sklearn-backed forest and returns to Decimal.
+
+### 6. Contracts affected
+
+New public in-memory contracts are `ForecastRecord`, `ForecastEvaluation`,
+`ModelUsed`, and `ForecastDataError`. No existing AI-01 contract or persisted
+database contract changed.
+
+### 7. Tests added
+
+AI-03 unit tests cover exact moving-average/OLS behavior, forest determinism and
+CI, fallback tiers, gaps, flat series, backtesting metrics, and isolation. A
+read-only Nour Fashion Co. integration test uses AI-01's database loader.
+
+### 8. Verification commands and real results
+
+- `python -m ruff check .`: **PASS** — all checks passed.
+- `python -m ruff format --check .`: **PASS** — 140 files already formatted.
+- `python -m mypy src`: **PASS** — no issues in 81 source files; pre-existing
+  `jose`/`passlib` override warnings were emitted.
+- `python -m pytest tests/unit/ai/test_forecasting.py -v`: **PASS** — 14 passed
+  in 18.41 seconds.
+- `python -m pytest tests/unit -v`: **PASS** — 97 passed in 23.49 seconds.
+- Non-database suite: **PASS** — 140 passed, 9 skipped, in 23.74 seconds.
+- `tests/integration/ai/test_database_loader.py` (pre-existing AI-01),
+  `tests/integration/ai/test_forecasting_integration.py`, Nour evidence, and
+  Alembic verification: **NOT RUN — PostgreSQL unavailable locally (DB infra
+  owned by other team members, out of scope for AI-03).**
+- GitHub Actions CI: **NOT RUN — no remote workflow was created or run here.**
+
+### 9. Documentation updated
+
+`docs/ai/AI-03-forecasting.md` and this completion report document contracts,
+dependencies, gap semantics, precision, evidence, verification, limitations,
+and follow-up work.
+
+### 10. Known limitations
+
+No DB persistence or worker wiring; Random Forest uses only calendar-offset
+input; Nour evidence is not run without PostgreSQL; forecast gap semantics
+intentionally diverge from AI-01's complete-calendar rolling-window rule.
+
+### 11. Follow-up work
+
+AI-06 owns persistence and worker wiring. When the team-owned database is
+available, rerun database-backed integration/evidence verification. Richer
+Random Forest inputs require a separately approved enhancement.
+
+### 12. Completion status
+
+Complete for AI-03's in-memory implementation and all available non-database
+verification. Database-dependent verification is **NOT RUN — PostgreSQL
+unavailable locally (DB infra owned by other team members, out of scope for
+AI-03)**.
+
 ## 1. Branch name
 
 `feature/AI-03-forecasting-module`
