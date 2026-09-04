@@ -65,8 +65,8 @@ def evaluate_forecasters(
         key=lambda item: (
             item.campaign_id.int,
             item.metric_name,
-            item.model_used.value,
             item.horizon_days,
+            item.model_used.value,
         ),
     )
 
