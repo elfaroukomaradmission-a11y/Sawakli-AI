@@ -44,9 +44,7 @@ def evaluate_forecasters(
         history = _history_for_metric(records, metric_name)
         for horizon_days in DEFAULT_HORIZONS:
             for forecaster in sorted(FORECASTERS, key=lambda item: item.name):
-                predictions, actuals = _backtest(
-                    history, forecaster, horizon_days, holdout_points
-                )
+                predictions, actuals = _backtest(history, forecaster, horizon_days, holdout_points)
                 mae, rmse, mape = _errors(predictions, actuals)
                 evaluations.append(
                     ForecastEvaluation(

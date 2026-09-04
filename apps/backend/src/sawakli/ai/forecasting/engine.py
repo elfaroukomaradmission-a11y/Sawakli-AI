@@ -97,20 +97,20 @@ def _group_features(
     for record in source:
         if not record.organization_id or not record.campaign_id:
             raise ForecastDataError("FeatureRecord requires organization_id and campaign_id")
-        key = (record.campaign_id, record.date)
-        if key in seen:
+        record_key = (record.campaign_id, record.date)
+        if record_key in seen:
             raise ForecastDataError("duplicate campaign/date FeatureRecord")
-        seen.add(key)
+        seen.add(record_key)
         for metric_name in SUPPORTED_METRICS:
             grouped[(record.campaign_id, metric_name)].append(record)
 
     result: list[tuple[tuple[UUID, str], tuple[FeatureRecord, ...]]] = []
-    for key in sorted(grouped, key=lambda item: (item[0].int, item[1])):
-        records = tuple(sorted(grouped[key], key=lambda record: record.date))
+    for group_key in sorted(grouped, key=lambda item: (item[0].int, item[1])):
+        records = tuple(sorted(grouped[group_key], key=lambda record: record.date))
         campaign_organizations = {record.organization_id for record in records}
         if len(campaign_organizations) != 1:
             raise ForecastDataError("one campaign_id cannot belong to multiple organizations")
-        result.append((key, records))
+        result.append((group_key, records))
     return result
 
 
@@ -141,9 +141,7 @@ def _validate_horizons(horizons: Iterable[int]) -> tuple[int, ...]:
     result = tuple(sorted(set(horizons)))
     if not result:
         raise ForecastDataError("at least one forecast horizon is required")
-    if any(
-        isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in result
-    ):
+    if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in result):
         raise ForecastDataError("forecast horizons must be positive integers")
     return result
 

@@ -16,7 +16,7 @@ from decimal import Decimal, localcontext
 from typing import Protocol
 
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor  # type: ignore[import-untyped]
 
 from sawakli.ai.features.metrics import FEATURE_DECIMAL_CONTEXT, decimal_sum
 

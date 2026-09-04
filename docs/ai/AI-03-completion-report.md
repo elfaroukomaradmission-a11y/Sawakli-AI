@@ -12,6 +12,14 @@ focused commit is created.
 
 ## 3. Files added
 
+### Commit addendum (authoritative)
+
+- `acc0493` — `feat(ai): add AI-03 forecasting contracts and forecasters`
+- `c754beb` — `test(ai): cover AI-03 forecasting behavior`
+
+The verification/documentation update follows in a focused commit on the same
+feature branch.
+
 - `apps/backend/src/sawakli/ai/forecasting/engine.py`
 - `apps/backend/src/sawakli/ai/forecasting/evaluation.py`
 - `apps/backend/src/sawakli/ai/forecasting/forecasters.py`
@@ -61,6 +69,27 @@ persisted-table contract was changed.
 
 ## 9. Documentation updated
 
+### Verification addendum (authoritative)
+
+This addendum supersedes the earlier environment-only verification snapshot in
+section 8.
+
+- `python -m ruff check .`: **PASS** — all checks passed.
+- `python -m ruff format --check .`: **PASS** — 140 files already formatted.
+- `python -m mypy src`: **PASS** — no issues in 81 source files. The repository
+  emitted pre-existing configuration warnings for `jose`/`passlib` overrides.
+- `python -m pytest tests/unit/ai/test_forecasting.py -v`: **PASS** — 14 passed
+  in 18.41 seconds, with two third-party deprecation warnings.
+- `python -m pytest tests/unit -v`: **PASS** — 97 passed in 23.49 seconds.
+- Non-database test suite: **PASS** — 140 passed, 9 skipped, in 23.74 seconds.
+- `tests/integration/ai/test_database_loader.py` (pre-existing AI-01) and
+  `tests/integration/ai/test_forecasting_integration.py`: **NOT RUN — PostgreSQL
+  unavailable locally (DB infra owned by other team members, out of scope for
+  AI-03).** `localhost:5434` refused TCP connections.
+- `alembic upgrade head`: **NOT RUN — PostgreSQL unavailable locally (DB infra
+  owned by other team members, out of scope for AI-03).**
+- GitHub Actions CI: **NOT RUN — no remote workflow was created or run here.**
+
 - `docs/ai/AI-03-forecasting.md` documents scope, contracts, formulas, dependency
   ranges, gap-rule divergence, precision boundary, evidence script, limitations,
   and verification state.
@@ -84,6 +113,14 @@ persisted-table contract was changed.
   forest.
 
 ## 12. Completion status
+
+### Superseding status
+
+The implementation, lint, formatting, strict typing, and all non-database tests
+are complete and passing. Database-dependent verification and Nour evidence are
+**NOT RUN — PostgreSQL unavailable locally (DB infra owned by other team members,
+out of scope for AI-03)**. The implementation and tests are committed on the
+feature branch.
 
 Implementation is complete but **not complete for handoff**: required verification
 failed due to missing tooling. The first focused implementation commit exists;

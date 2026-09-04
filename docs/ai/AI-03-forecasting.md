@@ -192,10 +192,22 @@ read-only database loader and never persists forecasts.
 
 ## 13. Verification
 
-Verification results are maintained in `AI-03-completion-report.md`. In this
-workspace, all requested backend commands currently fail before execution because
-no Python interpreter, backend virtual environment, or installed console scripts
-are available on `PATH`; no result is represented as a passing test.
+Executed on 2026-09-05 with Python 3.12.10 after the CI-equivalent editable
+installation command `python -m pip install -e ".[dev]"`. The Windows console
+wrappers were not on `PATH`, so the same tools ran through Python modules.
+
+- `python -m ruff check .`: **PASS** — all checks passed.
+- `python -m ruff format --check .`: **PASS** — 140 files already formatted.
+- `python -m mypy src`: **PASS** — no issues in 81 source files; the repository
+  still emits pre-existing configuration warnings for `jose`/`passlib` overrides.
+- `python -m pytest tests/unit/ai/test_forecasting.py -v`: **PASS** — 14 passed
+  in 18.41 seconds (two third-party deprecation warnings).
+- `python -m pytest tests/unit -v`: **PASS** — 97 passed in 23.49 seconds.
+- Non-database suite: **PASS** — 140 passed, 9 skipped, in 23.74 seconds.
+- `tests/integration/ai/test_database_loader.py` (pre-existing AI-01) and
+  `tests/integration/ai/test_forecasting_integration.py`: **NOT RUN — PostgreSQL
+  unavailable locally (DB infra owned by other team members, out of scope for
+  AI-03).** `localhost:5434` refused TCP connections.
 
 ## 14. Known Limitations
 
@@ -207,6 +219,13 @@ are available on `PATH`; no result is represented as a passing test.
 - Gap behavior intentionally differs from AI-01 as documented above.
 
 ## 15. Follow-Up Tasks
+
+### Verification addendum
+
+The real non-database verification results are recorded in section 13. The Nour
+evidence export and both AI database integration tests remain **NOT RUN —
+PostgreSQL unavailable locally (DB infra owned by other team members, out of
+scope for AI-03)**. No database infrastructure was installed or configured.
 
 - AI-06 — persist approved output and orchestrate runs without moving forecast
   mathematics into Worker code.
