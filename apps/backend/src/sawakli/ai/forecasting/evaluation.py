@@ -1,4 +1,4 @@
-"""Comparable deterministic rolling-origin backtesting for AI-03."""
+"""Comparable backtesting that follows ``forecasters.GAP_HANDLING_RULE``."""
 
 from __future__ import annotations
 
@@ -10,12 +10,10 @@ from sawakli.ai.features import FeatureRecord
 from sawakli.ai.features.metrics import FEATURE_DECIMAL_CONTEXT, decimal_sum
 
 from .engine import DEFAULT_HORIZONS, SUPPORTED_METRICS, _group_features, _history_for_metric
-from .forecasters import FORECASTERS, GAP_HANDLING_RULE, Forecaster, Observation
+from .forecasters import FORECASTERS, Forecaster, Observation
 from .schemas import ForecastEvaluation, ModelUsed
 
 DEFAULT_HOLDOUT_POINTS = 7
-# Evaluation deliberately uses the single shared forecaster gap policy.
-BACKTEST_GAP_HANDLING_RULE = GAP_HANDLING_RULE
 
 
 def evaluate_forecasters(

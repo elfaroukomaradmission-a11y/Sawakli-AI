@@ -72,6 +72,14 @@ def _bounded_interval(value: Decimal, lower: Decimal, upper: Decimal) -> tuple[D
     return min(lower, value), max(upper, value)
 
 
+def _residual_interval(value: Decimal, residuals: tuple[Decimal, ...]) -> tuple[Decimal, Decimal]:
+    """Return the fixed-z interval shared by deterministic residual models."""
+
+    with localcontext(FEATURE_DECIMAL_CONTEXT):
+        spread = Z_MULTIPLIER * _standard_deviation(residuals, Decimal(0))
+        return _bounded_interval(value, value - spread, value + spread)
+
+
 class MovingAverageForecaster:
     """Seven-observed-point mean with a 1.96-sigma residual interval."""
 
@@ -85,9 +93,8 @@ class MovingAverageForecaster:
         values = tuple(item.value for item in window)
         with localcontext(FEATURE_DECIMAL_CONTEXT):
             value = decimal_sum(values) / Decimal(len(values))
-            residual_stddev = _standard_deviation(values, value)
-            spread = Z_MULTIPLIER * residual_stddev
-            lower, upper = _bounded_interval(value, value - spread, value + spread)
+            residuals = tuple(item - value for item in values)
+            lower, upper = _residual_interval(value, residuals)
         return value, lower, upper
 
 
@@ -123,9 +130,7 @@ class LinearRegressionForecaster:
                 observed - (intercept + slope * offset)
                 for offset, observed in zip(offsets, values, strict=True)
             )
-            residual_stddev = _standard_deviation(residuals, Decimal(0))
-            spread = Z_MULTIPLIER * residual_stddev
-            lower, upper = _bounded_interval(value, value - spread, value + spread)
+            lower, upper = _residual_interval(value, residuals)
         return value, lower, upper
 
 

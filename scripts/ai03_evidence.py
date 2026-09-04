@@ -13,7 +13,6 @@ from pathlib import Path
 from uuid import UUID
 
 import pandas as pd
-
 from sawakli.ai.features import DatabaseDataLoader, engineer_features
 from sawakli.ai.forecasting import evaluate_forecasters, generate_forecasts
 from sawakli.db.session import SessionLocal
@@ -37,7 +36,9 @@ def main() -> None:
     forecast_rows = [asdict(record) for record in forecasts]
     evaluation_rows = [asdict(record) for record in evaluations]
     pd.DataFrame(forecast_rows).to_csv(OUTPUT_DIRECTORY / "forecasts.csv", index=False)
-    pd.DataFrame(evaluation_rows).to_csv(OUTPUT_DIRECTORY / "evaluations.csv", index=False)
+    pd.DataFrame(evaluation_rows).to_csv(
+        OUTPUT_DIRECTORY / "evaluations.csv", index=False
+    )
     (OUTPUT_DIRECTORY / "forecasts.json").write_text(
         json.dumps(forecast_rows, default=_json_default, indent=2), encoding="utf-8"
     )
