@@ -215,7 +215,8 @@ wrappers were not on `PATH`, so the same tools ran through Python modules.
 - The forest uses only one time-offset feature, not AI-01's richer features.
 - Forest quality on the seeded 90-day dataset must be judged from executed
   evidence, not presumed superior to the simpler models. Backtest artifacts are
-  **NOT RUN — no Python runtime is available in this workspace**.
+  **NOT RUN — PostgreSQL unavailable locally (DB infra owned by other team
+  members, out of scope for AI-03)**.
 - Gap behavior intentionally differs from AI-01 as documented above.
 
 ## 15. Follow-Up Tasks
