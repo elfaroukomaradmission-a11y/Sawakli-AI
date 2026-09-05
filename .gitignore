@@ -74,3 +74,6 @@ AGENTS.override.md
 
 # Python packaging artifacts
 *.egg-info/
+
+# AI-03 local forecast/evaluation evidence exports
+artifacts/ai03/
