@@ -81,7 +81,11 @@ def _residual_interval(value: Decimal, residuals: tuple[Decimal, ...]) -> tuple[
 
 
 class MovingAverageForecaster:
-    """Seven-observed-point mean with a 1.96-sigma residual interval."""
+    """Seven-observed-point mean with a 1.96-sigma residual interval.
+
+    ``horizon_days`` is intentionally unused because this level forecast is
+    the same mean at every horizon.
+    """
 
     name = "moving_average"
     minimum_required_history = MOVING_AVERAGE_WINDOW

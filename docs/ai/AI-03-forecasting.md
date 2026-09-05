@@ -14,7 +14,7 @@ It creates no database records and has no worker integration.
 - Typed forecast and evaluation contracts.
 - Moving average, OLS linear regression, and fixed-seed Random Forest forecasts.
 - Deterministic fallback selection, confidence intervals, and backtesting.
-- Read-only evidence export from the seeded Nour Fashion Co. data.
+- Synthetic, read-only forecast and evaluation evidence export.
 
 ### Out of Scope
 
@@ -148,8 +148,7 @@ using `Decimal(str(float))`. This is a scoped ML-boundary exception.
 ### Reads
 
 - `FeatureRecord` passed by the caller, normally created by AI-01.
-- The evidence script reads `daily_metrics` only through AI-01's
-  `DatabaseDataLoader`.
+- The evidence script constructs deterministic synthetic `FeatureRecord` fixtures.
 
 ### Writes
 
@@ -181,6 +180,7 @@ by campaign so forecast/evaluation history cannot leak across campaigns.
 | Undefined ROAS | Not an observed ROAS point. |
 | Flat values | Valid zero-width CI. |
 | Zero actual in MAPE | Excluded; all-zero MAPE becomes `None`. |
+| Spend / conversions forecast below zero | Public forecast value and both CI bounds are clamped to zero. This is an explicit business rule because neither metric can logically be negative. |
 
 ## 12. Testing
 
@@ -189,6 +189,13 @@ CI sanity, every fallback tier, gaps, flat histories, MAPE missing semantics,
 campaign/organization isolation, backtest MAE/RMSE, and entrypoint ordering.
 The integration test uses the seeded Nour Fashion Co. data through AI-01's
 read-only database loader and never persists forecasts.
+
+Evidence is generated from representative synthetic `FeatureRecord` fixtures by
+`scripts/ai03_evidence.py` because no local PostgreSQL instance is available;
+this is a valid demonstration of correctly shaped forecasting behavior. The
+optional integration test additionally validates the module through AI-01's real
+database loader, but remains **NOT RUN** locally because shared DB infrastructure
+is owned by other team members and is out of scope for AI-03 to provision.
 
 ## 13. Verification
 
@@ -228,9 +235,9 @@ wrappers were not on `PATH`, so the same tools ran through Python modules.
 
 ## 16. References and Evidence
 
-- Run from an installed backend environment with `DATABASE_URL` pointing at a
-  migrated seeded database: `python scripts/ai03_evidence.py`.
-- The command writes `artifacts/ai03/forecasts.csv`, `evaluations.csv`, and JSON
-  equivalents. The directory is intentionally gitignored.
+- Run from an installed backend environment: `python scripts/ai03_evidence.py`.
+- The command writes synthetic `forecasts.csv`, `evaluations.csv`, JSON
+  equivalents, and `forecast.svg` under `artifacts/ai03/`. The directory is
+  intentionally gitignored.
 - Canonical persisted-table reference:
   [`tests/contracts/canonical.json`](../../tests/contracts/canonical.json).

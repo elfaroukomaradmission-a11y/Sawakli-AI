@@ -51,6 +51,7 @@ def generate_forecasts(
                 )
                 continue
             value, ci_lower, ci_upper = model.forecast(history, horizon_days)
+            value, ci_lower, ci_upper = _apply_metric_bounds(metric_name, value, ci_lower, ci_upper)
             forecasts.append(
                 ForecastRecord(
                     organization_id=records[0].organization_id,
@@ -159,3 +160,14 @@ def _select_forecaster(history: Sequence[Observation]) -> Forecaster | None:
 
 def _model_used(forecaster: Forecaster) -> ModelUsed:
     return ModelUsed(forecaster.name)
+
+
+def _apply_metric_bounds(
+    metric_name: str, value: Decimal, ci_lower: Decimal, ci_upper: Decimal
+) -> tuple[Decimal, Decimal, Decimal]:
+    """Apply business-domain bounds when constructing public forecast records."""
+
+    if metric_name not in {"spend", "conversions"}:
+        return value, ci_lower, ci_upper
+    zero = Decimal(0)
+    return max(value, zero), max(ci_lower, zero), max(ci_upper, zero)

@@ -12,7 +12,9 @@ from sawakli.ai.forecasting import (
     evaluate_forecasters,
     generate_forecasts,
 )
+from sawakli.ai.forecasting import evaluation as forecasting_evaluation
 from sawakli.ai.forecasting.forecasters import (
+    FORECASTERS,
     LinearRegressionForecaster,
     MovingAverageForecaster,
     Observation,
@@ -66,6 +68,14 @@ def test_moving_average_has_hand_calculable_value_and_interval() -> None:
     assert lower < value < upper
 
 
+def test_moving_average_is_deterministic_on_repeat_call() -> None:
+    series = observations(list(range(1, 8)))
+
+    assert MovingAverageForecaster().forecast(series, 7) == MovingAverageForecaster().forecast(
+        series, 7
+    )
+
+
 def test_linear_regression_has_hand_calculable_projection() -> None:
     # y = 2x + 1 for x = 0..13, so the seven-day-ahead point is y(20) = 41.
     series = observations([2 * index + 1 for index in range(14)])
@@ -73,6 +83,14 @@ def test_linear_regression_has_hand_calculable_projection() -> None:
 
     assert value == Decimal("41")
     assert lower == value == upper
+
+
+def test_linear_regression_is_deterministic_on_repeat_call() -> None:
+    series = observations([2 * index + 1 for index in range(14)])
+
+    assert LinearRegressionForecaster().forecast(
+        series, 7
+    ) == LinearRegressionForecaster().forecast(series, 7)
 
 
 def test_random_forest_is_deterministic_and_returns_a_bounded_interval() -> None:
@@ -107,6 +125,20 @@ def test_fallback_hierarchy_at_every_tier(point_count: int, expected_model: Mode
         assert all(forecast.value is None for forecast in forecasts)
     else:
         assert all(forecast.value is not None for forecast in forecasts)
+        assert all(
+            forecast.ci_lower is not None and forecast.ci_upper is not None
+            for forecast in forecasts
+        )
+
+
+def test_default_generation_includes_all_supported_horizons_for_each_metric() -> None:
+    forecasts = generate_forecasts(features_for([Decimal(index + 1) for index in range(21)]))
+
+    assert {forecast.horizon_days for forecast in forecasts if forecast.metric_name == "spend"} == {
+        7,
+        14,
+        30,
+    }
 
 
 def test_gap_handling_uses_last_observed_points_not_calendar_days() -> None:
@@ -177,6 +209,38 @@ def test_backtesting_mape_is_missing_when_all_comparable_actuals_are_zero() -> N
     assert moving_average.mae is not None
     assert moving_average.rmse is not None
     assert moving_average.mape is None
+
+
+def test_evaluation_uses_identical_held_out_targets_for_all_forecasters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    features = features_for([Decimal(index + 1) for index in range(35)])
+    original_backtest = forecasting_evaluation._backtest
+    captured_actuals: dict[tuple[int, str], tuple[Decimal, ...]] = {}
+
+    def capture_backtest(
+        history: tuple[Observation, ...],
+        forecaster: object,
+        horizon_days: int,
+        holdout_points: int,
+    ) -> tuple[tuple[Decimal, ...], tuple[Decimal, ...]]:
+        predictions, actuals = original_backtest(
+            history,
+            forecaster,
+            horizon_days,
+            holdout_points,  # type: ignore[arg-type]
+        )
+        captured_actuals[(horizon_days, forecaster.name)] = actuals  # type: ignore[union-attr]
+        return predictions, actuals
+
+    monkeypatch.setattr(forecasting_evaluation, "_backtest", capture_backtest)
+    evaluate_forecasters(features)
+
+    for horizon_days in (7, 14, 30):
+        target_sets = {
+            captured_actuals[(horizon_days, forecaster.name)] for forecaster in FORECASTERS
+        }
+        assert len(target_sets) == 1
 
 
 def test_entrypoints_are_deterministic_when_input_order_changes() -> None:
