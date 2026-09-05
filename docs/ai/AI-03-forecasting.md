@@ -221,13 +221,6 @@ wrappers were not on `PATH`, so the same tools ran through Python modules.
 
 ## 15. Follow-Up Tasks
 
-### Verification addendum
-
-The real non-database verification results are recorded in section 13. The Nour
-evidence export and both AI database integration tests remain **NOT RUN —
-PostgreSQL unavailable locally (DB infra owned by other team members, out of
-scope for AI-03)**. No database infrastructure was installed or configured.
-
 - AI-06 — persist approved output and orchestrate runs without moving forecast
   mathematics into Worker code.
 - Future approved forecasting work — evaluate richer, explicitly justified
