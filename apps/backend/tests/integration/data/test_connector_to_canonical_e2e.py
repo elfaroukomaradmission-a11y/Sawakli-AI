@@ -123,8 +123,7 @@ def test_csv_connector_reaches_canonical_facts_with_reconciliation(
     assert "not a valid number" in parsed.parse_warnings[0]
 
     staged_rows = [
-        staged_row_from_csv_dict(organization_id, data_source_id, row)
-        for row in parsed.parsed_rows
+        staged_row_from_csv_dict(organization_id, data_source_id, row) for row in parsed.parsed_rows
     ]
     first_import = normalize_and_upsert_batch(db_session, staged_rows)
     second_import = normalize_and_upsert_batch(db_session, staged_rows)

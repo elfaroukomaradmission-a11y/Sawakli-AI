@@ -115,9 +115,7 @@ def normalize_ga_event(
 
     sessions = int(row.sessions) if row.sessions is not None else 0
     bounces = int(row.bounces) if row.bounces is not None else 0
-    session_duration = (
-        float(row.session_duration) if row.session_duration is not None else None
-    )
+    session_duration = float(row.session_duration) if row.session_duration is not None else None
 
     return GAEventUpsertPayload(
         organization_id=organization_id,
