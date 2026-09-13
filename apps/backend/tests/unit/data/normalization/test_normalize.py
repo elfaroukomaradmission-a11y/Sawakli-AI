@@ -6,12 +6,16 @@ from sawakli.data.normalization.normalize import (
     normalize_ad_group,
     normalize_campaign,
     normalize_creative,
+    normalize_daily_metric,
+    normalize_ga_event,
 )
 from sawakli.data.staging.models import (
     StagedAdGroupRow,
     StagedAdRow,
     StagedCampaignRow,
     StagedCreativeRow,
+    StagedDailyMetricRow,
+    StagedGAEventRow,
 )
 
 
@@ -102,3 +106,49 @@ def test_normalize_creative() -> None:
     assert payload.creative_type == "image"
     assert payload.headline == "Summer Sale"
     assert payload.asset_url == "https://example.com/image.jpg"
+
+
+def test_normalize_daily_metric() -> None:
+    organization_id = uuid4()
+    campaign_id = uuid4()
+
+    row = StagedDailyMetricRow(
+        date="2026-08-30",
+        spend="103.45",
+        impressions="1234",
+        clicks="42",
+        conversions="7",
+        revenue="256.87",
+    )
+
+    payload = normalize_daily_metric(row, campaign_id, organization_id)
+
+    assert payload.organization_id == organization_id
+    assert payload.campaign_id == campaign_id
+    assert payload.date == date(2026, 8, 30)
+    assert payload.spend == 103.45
+    assert payload.impressions == 1234
+    assert payload.clicks == 42
+    assert payload.conversions == 7
+    assert payload.revenue == 256.87
+
+
+def test_normalize_ga_event() -> None:
+    organization_id = uuid4()
+    campaign_id = uuid4()
+
+    row = StagedGAEventRow(
+        date="2026-08-30",
+        sessions="500",
+        bounces="150",
+        session_duration=None,
+    )
+
+    payload = normalize_ga_event(row, campaign_id, organization_id)
+
+    assert payload.organization_id == organization_id
+    assert payload.campaign_id == campaign_id
+    assert payload.date == date(2026, 8, 30)
+    assert payload.sessions == 500
+    assert payload.bounces == 150
+    assert payload.session_duration is None

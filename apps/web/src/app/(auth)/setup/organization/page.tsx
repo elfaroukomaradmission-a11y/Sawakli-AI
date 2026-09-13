@@ -3,18 +3,38 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Building2, ArrowRight } from 'lucide-react'
+import { AlertCircle, ArrowRight, Building2, LoaderCircle } from 'lucide-react'
+import { login, register } from '@/services/auth.service'
+import { setSession } from '@/lib/mock-auth'
 
 export default function OrganizationSetupPage() {
   const router = useRouter()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [orgName, setOrgName] = useState('')
-  const [industry, setIndustry] = useState('Fashion & Apparel')
-  const [adSpend, setAdSpend] = useState('10,000 – 50,000 EGP')
-  const [currency, setCurrency] = useState('EGP — Egyptian Pound')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  function handleContinue(e: React.FormEvent) {
+  async function handleContinue(e: React.FormEvent) {
     e.preventDefault()
-    router.push('/setup/connector')
+    setError('')
+    setLoading(true)
+
+    try {
+      const response = await register(name, email, password, orgName)
+      const sessionResponse = await login(email, password)
+      setSession({
+        user: sessionResponse.user,
+        organization: response.organization,
+        access_token: sessionResponse.access_token,
+      })
+      router.push('/setup/connector')
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Workspace setup failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -51,10 +71,32 @@ export default function OrganizationSetupPage() {
         Create your organization
       </h1>
       <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 28 }}>
-        Set up your business workspace to start connecting ad platforms.
+        Create an account and its first workspace. You can import demo data next.
       </p>
 
+      {error && (
+        <div className="error-alert" role="alert">
+          <AlertCircle />
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleContinue}>
+        <div className="form-group">
+          <label htmlFor="name" className="form-label">Your name</label>
+          <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required className="form-input" autoComplete="name" />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="email" className="form-label">Work email</label>
+          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="form-input" autoComplete="email" />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="password" className="form-label">Password</label>
+          <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className="form-input" autoComplete="new-password" />
+        </div>
+
         <div className="form-group">
           <label htmlFor="orgName" className="form-label">Organization name</label>
           <input
@@ -67,58 +109,9 @@ export default function OrganizationSetupPage() {
           />
         </div>
 
-        <div className="form-group">
-          <label htmlFor="industry" className="form-label">Industry</label>
-          <select
-            id="industry"
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            className="form-input"
-            style={{ appearance: 'none', paddingRight: 32 }}
-          >
-            <option>Fashion &amp; Apparel</option>
-            <option>E-commerce</option>
-            <option>Retail</option>
-            <option>Other</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="adSpend" className="form-label">Monthly ad spend range</label>
-          <select
-            id="adSpend"
-            value={adSpend}
-            onChange={(e) => setAdSpend(e.target.value)}
-            className="form-input"
-            style={{ appearance: 'none', paddingRight: 32 }}
-          >
-            <option>10,000 – 50,000 EGP</option>
-            <option>50,000 – 200,000 EGP</option>
-            <option>200,000+ EGP</option>
-          </select>
-          <p style={{ marginTop: 4, fontSize: 11, color: 'var(--color-text-faint)' }}>
-            Helps Sawakli calibrate recommendations for your budget.
-          </p>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="currency" className="form-label">Default currency</label>
-          <select
-            id="currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="form-input"
-            style={{ appearance: 'none', paddingRight: 32 }}
-          >
-            <option>EGP — Egyptian Pound</option>
-            <option>USD — US Dollar</option>
-            <option>EUR — Euro</option>
-          </select>
-        </div>
-
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-          <ArrowRight style={{ width: 16, height: 16 }} />
-          Continue to Connectors
+        <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', opacity: loading ? 0.65 : 1 }}>
+          {loading ? <LoaderCircle className="spin" /> : <ArrowRight />}
+          {loading ? 'Creating workspace...' : 'Create workspace'}
         </button>
       </form>
 

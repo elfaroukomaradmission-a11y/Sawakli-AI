@@ -1,194 +1,149 @@
 'use client'
 
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Plug,
+  AlertCircle,
   ArrowRight,
-  Search,
-  Share2,
   BarChart3,
-  FileSpreadsheet,
   CheckCircle2,
-  Plus,
-  Upload,
+  FileSpreadsheet,
+  FileUp,
+  Link2,
+  Plug,
+  ShieldCheck,
   UploadCloud,
 } from 'lucide-react'
-import { setSession, DEMO_SESSION } from '@/lib/mock-auth'
+import { setSession, DEMO_SESSION, getSession } from '@/lib/mock-auth'
+
+type SourceChoice = 'demo' | 'csv' | 'ga4' | 'google-ads' | null
 
 const CONNECTORS = [
-  {
-    name: 'Google Ads',
-    status: 'Connected',
-    connected: true,
-    icon: Search,
-    iconBg: 'var(--color-info-light)',
-    iconColor: 'var(--color-info)',
-  },
-  {
-    name: 'Meta Ads',
-    status: 'Not connected',
-    connected: false,
-    icon: Share2,
-    iconBg: 'var(--color-accent-light)',
-    iconColor: 'var(--color-accent)',
-  },
-  {
-    name: 'Google Analytics 4',
-    status: 'Not connected',
-    connected: false,
-    icon: BarChart3,
-    iconBg: 'var(--color-warning-light)',
-    iconColor: 'var(--color-warning)',
-  },
-  {
-    name: 'CSV Upload',
-    status: 'Demo data',
-    connected: false,
-    icon: FileSpreadsheet,
-    iconBg: 'var(--color-surface-raised)',
-    iconColor: 'var(--color-text-muted)',
-  },
+  { id: 'ga4', name: 'Google Analytics 4', detail: 'OAuth connection', icon: BarChart3 },
+  { id: 'google-ads', name: 'Google Ads', detail: 'OAuth connection', icon: Link2 },
 ] as const
 
 export default function ConnectorSetupPage() {
   const router = useRouter()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [source, setSource] = useState<SourceChoice>(null)
+  const [fileName, setFileName] = useState('')
+  const [fileSize, setFileSize] = useState<number | null>(null)
+  const [error, setError] = useState('')
 
-  function handleContinue() {
-    setSession(DEMO_SESSION)
+  function handleFile(file: File | undefined) {
+    setError('')
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setFileName('')
+      setFileSize(null)
+      setSource(null)
+      setError('Choose a CSV file to continue.')
+      return
+    }
+    setFileName(file.name)
+    setFileSize(file.size)
+    setSource('csv')
+  }
+
+  function continueToDashboard() {
+    if (!source) {
+      setError('Choose demo data or select a CSV before continuing.')
+      return
+    }
+    if (source === 'ga4' || source === 'google-ads') {
+      setError('OAuth authorization for this connector is not available yet. Choose demo data or CSV to continue.')
+      return
+    }
+    if (!getSession()) setSession(DEMO_SESSION)
     router.push('/dashboard')
   }
 
+  function chooseDemo() {
+    setError('')
+    setFileName('')
+    setFileSize(null)
+    setSource('demo')
+  }
+
+  function chooseConnector(connector: 'ga4' | 'google-ads') {
+    setError('')
+    setFileName('')
+    setFileSize(null)
+    setSource(connector)
+  }
+
   return (
-    <div
-      style={{
-        width: '100%',
-        maxWidth: 540,
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--color-border)',
-        padding: '40px 32px',
-        background: 'var(--color-surface)',
-        boxShadow: 'var(--shadow-md)',
-      }}
-    >
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          borderRadius: 4,
-          padding: '4px 10px',
-          fontSize: 12,
-          fontWeight: 'var(--font-weight-semibold)',
-          background: 'var(--color-accent-light)',
-          color: 'var(--color-accent)',
-          marginBottom: 16,
-        }}
-      >
-        <Plug style={{ width: 14, height: 14 }} />
-        Step 2 of 2
-      </div>
+    <div className="setup-shell setup-shell-wide">
+      <div className="setup-step"><Plug /> Step 2 of 2</div>
 
-      <h1 style={{ fontSize: 18, fontWeight: 'var(--font-weight-bold)', marginBottom: 4 }}>
-        Connect your ad platforms
-      </h1>
-      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 28 }}>
-        Link at least one data source so Sawakli can start analyzing your campaigns.
-      </p>
+      <h1>Bring in your marketing data</h1>
+      <p className="setup-lede">Start with safe demo data or import a CSV. OAuth connectors will return here with a connection status after authorization.</p>
 
-      {/* Connector grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
-        {CONNECTORS.map((c) => (
-          <div
-            key={c.name}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              borderRadius: 'var(--radius-md)',
-              border: `1px solid ${c.connected ? 'var(--color-success-border)' : 'var(--color-border)'}`,
-              padding: 14,
-              cursor: 'pointer',
-              background: c.connected ? 'var(--color-success-light)' : undefined,
-              transition: 'border-color var(--transition), background var(--transition)',
-            }}
+      {error && <div className="error-alert" role="alert"><AlertCircle /> {error}</div>}
+
+      <div className="source-list">
+        {CONNECTORS.map(({ id, name, detail, icon: Icon }) => (
+          <button
+            type="button"
+            className={`source-row source-choice ${source === id ? 'selected' : ''}`}
+            key={name}
+            onClick={() => chooseConnector(id)}
           >
-            <div
-              style={{
-                display: 'flex',
-                width: 36,
-                height: 36,
-                flexShrink: 0,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 8,
-                background: c.iconBg,
-                color: c.iconColor,
-              }}
-            >
-              <c.icon style={{ width: 18, height: 18 }} />
+            <div className="source-icon"><Icon /></div>
+            <div className="source-copy">
+              <strong>{name}</strong>
+              <span>{detail}</span>
             </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 'var(--font-weight-semibold)' }}>{c.name}</div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: c.connected ? 'var(--color-success)' : 'var(--color-text-muted)',
-                  fontWeight: c.connected ? 500 : 400,
-                }}
-              >
-                {c.status}
-              </div>
-            </div>
-            <div style={{ flexShrink: 0, color: c.connected ? 'var(--color-success)' : 'var(--color-text-faint)' }}>
-              {c.connected ? (
-                <CheckCircle2 style={{ width: 16, height: 16 }} />
-              ) : c.name === 'CSV Upload' ? (
-                <Upload style={{ width: 16, height: 16 }} />
-              ) : (
-                <Plus style={{ width: 16, height: 16 }} />
-              )}
-            </div>
-          </div>
+            <span className={`source-status ${source === id ? 'selected-status' : ''}`}>
+              {source === id ? <CheckCircle2 /> : <span className="status-dot" />}
+              {source === id ? 'Selected' : 'Available'}
+            </span>
+          </button>
         ))}
       </div>
 
-      {/* Or divider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, fontSize: 12, fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text-faint)' }}>
-        <span style={{ height: 1, flex: 1, background: 'var(--color-border)' }} />
-        or upload demo data
-        <span style={{ height: 1, flex: 1, background: 'var(--color-border)' }} />
-      </div>
+      <div className="setup-divider"><span>or use the demo path</span></div>
 
-      {/* Upload zone */}
-      <div
-        style={{
-          marginBottom: 24,
-          cursor: 'pointer',
-          borderRadius: 'var(--radius-md)',
-          border: '2px dashed var(--color-border)',
-          padding: 24,
-          textAlign: 'center',
-          transition: 'border-color var(--transition)',
-        }}
-      >
-        <UploadCloud style={{ width: 24, height: 24, margin: '0 auto 8px', color: 'var(--color-text-faint)' }} />
-        <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-          Drag and drop a CSV file, or{' '}
-          <strong style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-accent)' }}>browse</strong>
-        </p>
-      </div>
-
-      <button onClick={handleContinue} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-        <ArrowRight style={{ width: 16, height: 16 }} />
-        Continue to Dashboard
+      <button type="button" className={`demo-choice ${source === 'demo' ? 'selected' : ''}`} onClick={chooseDemo}>
+        <div className="demo-choice-icon"><FileSpreadsheet /></div>
+        <span><strong>Load Sawakli demo data</strong><small>Explore the workspace with a prepared campaign dataset.</small></span>
+        {source === 'demo' && <CheckCircle2 className="choice-check" />}
       </button>
 
-      <p style={{ marginTop: 16, textAlign: 'center', fontSize: 13, color: 'var(--color-text-muted)' }}>
-        <Link href="/setup/organization" style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-accent)' }}>
-          Back to Organization Setup
-        </Link>
-      </p>
+      <div className={`upload-zone ${source === 'csv' ? 'selected' : ''}`}>
+        <input ref={inputRef} type="file" accept=".csv,text/csv" onChange={(event) => handleFile(event.target.files?.[0])} hidden />
+        {source === 'csv' ? <FileUp className="upload-icon" /> : <UploadCloud className="upload-icon" />}
+        {fileName ? (
+          <>
+            <strong>{fileName}</strong>
+            <span>{formatFileSize(fileSize ?? 0)} · Ready to import</span>
+          </>
+        ) : (
+          <>
+            <strong>Import a CSV file</strong>
+            <span>Campaign metrics stay in your workspace scope.</span>
+          </>
+        )}
+        <button type="button" className="btn btn-secondary upload-button" onClick={() => inputRef.current?.click()}>
+          {fileName ? 'Choose another file' : 'Choose CSV'}
+        </button>
+      </div>
+
+      <div className="safe-note"><ShieldCheck /><span>No API keys or provider tokens are requested on this screen. Selected connectors still require OAuth authorization.</span></div>
+
+      <button type="button" onClick={continueToDashboard} className="btn btn-primary setup-submit">
+        <ArrowRight /> Continue to workspace
+      </button>
+
+      <p className="setup-back"><Link href="/setup/organization">Back to workspace setup</Link></p>
     </div>
   )
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
