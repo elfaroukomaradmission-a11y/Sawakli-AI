@@ -45,10 +45,7 @@ def test_seeded_evaluation_meets_ai02_target():
     campaign_id = uuid4()
 
     records = [
-        *[
-            make_record(campaign_id, day)
-            for day in range(1, 11)
-        ],
+        *[make_record(campaign_id, day) for day in range(1, 11)],
         # Seeded abnormal case.
         make_record(campaign_id, 11, abnormal=True),
     ]
@@ -63,10 +60,7 @@ def test_seeded_evaluation_meets_ai02_target():
 
     # Clean history must remain clean.
     clean_results = results[:-1]
-    false_positives = sum(
-        result.score >= Decimal("0.40")
-        for result in clean_results
-    )
+    false_positives = sum(result.score >= Decimal("0.40") for result in clean_results)
 
     false_positive_rate = false_positives / len(clean_results)
 

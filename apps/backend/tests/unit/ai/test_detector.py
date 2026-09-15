@@ -43,9 +43,7 @@ def make_record(
         rolling_cpc_7d=None,
         rolling_cpc_14d=None,
         spend_trend=Decimal(spend_trend) if spend_trend else None,
-        conversion_trend=(
-            Decimal(conversion_trend) if conversion_trend else None
-        ),
+        conversion_trend=(Decimal(conversion_trend) if conversion_trend else None),
         roas_trend=Decimal(roas_trend) if roas_trend else None,
     )
 
@@ -57,10 +55,7 @@ def test_empty_input_returns_empty_result():
 def test_insufficient_history_is_not_an_anomaly():
     campaign_id = uuid4()
 
-    records = [
-        make_record(campaign_id=campaign_id, day=i)
-        for i in range(1, 5)
-    ]
+    records = [make_record(campaign_id=campaign_id, day=i) for i in range(1, 5)]
 
     results = detect_anomalies(records)
 
@@ -71,10 +66,7 @@ def test_insufficient_history_is_not_an_anomaly():
 def test_normal_campaign_has_low_anomaly_score():
     campaign_id = uuid4()
 
-    records = [
-        make_record(campaign_id=campaign_id, day=i)
-        for i in range(1, 11)
-    ]
+    records = [make_record(campaign_id=campaign_id, day=i) for i in range(1, 11)]
 
     results = detect_anomalies(records)
 
@@ -85,10 +77,7 @@ def test_normal_campaign_has_low_anomaly_score():
 def test_detector_is_deterministic():
     campaign_id = uuid4()
 
-    records = [
-        make_record(campaign_id=campaign_id, day=i)
-        for i in range(1, 11)
-    ]
+    records = [make_record(campaign_id=campaign_id, day=i) for i in range(1, 11)]
 
     first = detect_anomalies(records)
     second = detect_anomalies(records)
@@ -101,22 +90,15 @@ def test_campaigns_are_evaluated_independently():
     campaign_b = uuid4()
 
     records = [
-        *[
-            make_record(campaign_id=campaign_a, day=i)
-            for i in range(1, 11)
-        ],
-        *[
-            make_record(campaign_id=campaign_b, day=i)
-            for i in range(1, 11)
-        ],
+        *[make_record(campaign_id=campaign_a, day=i) for i in range(1, 11)],
+        *[make_record(campaign_id=campaign_b, day=i) for i in range(1, 11)],
     ]
 
     results = detect_anomalies(records)
 
     assert len(results) == 20
-    assert {
-        result.campaign_id for result in results
-    } == {campaign_a, campaign_b}
+    assert {result.campaign_id for result in results} == {campaign_a, campaign_b}
+
 
 def test_detector_finds_strong_downward_anomaly():
     campaign_id = uuid4()
@@ -153,7 +135,8 @@ def test_detector_finds_strong_downward_anomaly():
     assert abnormal.severity in {"medium", "high", "critical"}
     assert abnormal.direction == "down"
     assert abnormal.reasons
-    
+
+
 def test_detector_finds_strong_upward_anomaly():
     campaign_id = uuid4()
 

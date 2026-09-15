@@ -105,10 +105,7 @@ def _detect_campaign_anomalies(
 
     # We need enough history to establish a useful baseline.
     if len(records) < 5:
-        return [
-            _normal_result(record)
-            for record in records
-        ]
+        return [_normal_result(record) for record in records]
 
     feature_values = _build_feature_matrix(records)
 
@@ -160,11 +157,7 @@ def _detect_campaign_anomalies(
             records,
         )
 
-        reasons = tuple(
-            dict.fromkeys(
-                [*z_reasons, *iqr_reasons]
-            )
-        )
+        reasons = tuple(dict.fromkeys([*z_reasons, *iqr_reasons]))
 
         results.append(
             AnomalyResult(
@@ -205,11 +198,7 @@ def _build_feature_matrix(
             if (value := getattr(record, feature_name)) is not None
         ]
 
-        medians[feature_name] = (
-            float(np.median(values))
-            if values
-            else 0.0
-        )
+        medians[feature_name] = float(np.median(values)) if values else 0.0
 
     for record in records:
         row: list[float] = []
@@ -226,6 +215,7 @@ def _build_feature_matrix(
 
     return np.asarray(matrix, dtype=float)
 
+
 def _robust_z_score(
     records: list[FeatureRecord],
     record: FeatureRecord,
@@ -236,11 +226,7 @@ def _robust_z_score(
     strongest_direction = "normal"
     reasons: list[str] = []
 
-    history = [
-        item
-        for item in records
-        if item.date < record.date
-    ]
+    history = [item for item in records if item.date < record.date]
 
     if len(history) < 5:
         return Decimal("0"), "normal", []
@@ -252,9 +238,7 @@ def _robust_z_score(
             continue
 
         values = [
-            float(value)
-            for item in history
-            if (value := getattr(item, feature_name)) is not None
+            float(value) for item in history if (value := getattr(item, feature_name)) is not None
         ]
 
         if len(values) < 5:
@@ -262,10 +246,7 @@ def _robust_z_score(
 
         median_value = float(np.median(values))
 
-        absolute_deviations = [
-            abs(value - median_value)
-            for value in values
-        ]
+        absolute_deviations = [abs(value - median_value) for value in values]
 
         mad = float(np.median(absolute_deviations))
         current_value = float(current)
@@ -277,30 +258,19 @@ def _robust_z_score(
 
             score = Decimal("1")
         else:
-            robust_z = abs(
-                (current_value - median_value)
-                / (1.4826 * mad)
-            )
+            robust_z = abs((current_value - median_value) / (1.4826 * mad))
 
-            score = Decimal(
-                str(round(min(robust_z / 6.0, 1.0), 6))
-            )
+            score = Decimal(str(round(min(robust_z / 6.0, 1.0), 6)))
 
         if score > strongest_score:
             strongest_score = score
 
-            strongest_direction = (
-                "up"
-                if current_value > median_value
-                else "down"
-            )
+            strongest_direction = "up" if current_value > median_value else "down"
 
-            reasons = [
-                f"{feature_name} is unusually "
-                f"{strongest_direction}"
-            ]
+            reasons = [f"{feature_name} is unusually {strongest_direction}"]
 
     return strongest_score, strongest_direction, reasons
+
 
 def _iqr_score(
     records: list[FeatureRecord],
@@ -312,11 +282,7 @@ def _iqr_score(
     strongest_direction = "normal"
     reasons: list[str] = []
 
-    history = [
-        item
-        for item in records
-        if item.date < record.date
-    ]
+    history = [item for item in records if item.date < record.date]
 
     if len(history) < 5:
         return Decimal("0"), "normal", []
@@ -328,9 +294,7 @@ def _iqr_score(
             continue
 
         values = sorted(
-            float(value)
-            for item in history
-            if (value := getattr(item, feature_name)) is not None
+            float(value) for item in history if (value := getattr(item, feature_name)) is not None
         )
 
         if len(values) < 5:
@@ -347,11 +311,7 @@ def _iqr_score(
 
             score = Decimal("1")
 
-            direction = (
-                "up"
-                if current_value > q1
-                else "down"
-            )
+            direction = "up" if current_value > q1 else "down"
 
         else:
             lower = q1 - 1.5 * iqr
@@ -366,16 +326,12 @@ def _iqr_score(
             else:
                 continue
 
-            score = Decimal(
-                str(round(min(distance / 3.0, 1.0), 6))
-            )
+            score = Decimal(str(round(min(distance / 3.0, 1.0), 6)))
 
         if score > strongest_score:
             strongest_score = score
             strongest_direction = direction
-            reasons = [
-                f"{feature_name} is outside the normal IQR range"
-            ]
+            reasons = [f"{feature_name} is outside the normal IQR range"]
 
     return strongest_score, strongest_direction, reasons
 
@@ -448,17 +404,14 @@ def _normal_result(record: FeatureRecord) -> AnomalyResult:
         reasons=("insufficient campaign history",),
     )
 
+
 def _overall_direction(
     record: FeatureRecord,
     records: list[FeatureRecord],
 ) -> str:
     """Determine overall campaign direction from abnormal feature movements."""
 
-    history = [
-        item
-        for item in records
-        if item.date < record.date
-    ]
+    history = [item for item in records if item.date < record.date]
 
     if len(history) < 5:
         return "normal"
@@ -489,9 +442,7 @@ def _overall_direction(
             continue
 
         values = [
-            float(value)
-            for item in history
-            if (value := getattr(item, feature_name)) is not None
+            float(value) for item in history if (value := getattr(item, feature_name)) is not None
         ]
 
         if len(values) < 5:
