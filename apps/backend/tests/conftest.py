@@ -1,3 +1,4 @@
+import base64
 import os
 from collections.abc import Generator
 from datetime import UTC, datetime
@@ -24,6 +25,10 @@ os.environ.setdefault("JWT_SECRET", "change-this-to-a-real-secret")
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+psycopg://postgres:change-me@localhost:5434/sawakli_test",
+)
+os.environ.setdefault(
+    "CONNECTOR_TOKEN_ENCRYPTION_KEY",
+    base64.b64encode(b"k" * 32).decode(),
 )
 load_dotenv(_REPO_ROOT / ".env", override=False)
 
