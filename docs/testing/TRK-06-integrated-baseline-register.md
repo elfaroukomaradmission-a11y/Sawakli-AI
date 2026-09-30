@@ -20,9 +20,13 @@ Snapshot: **2026-09-29 13:56 UTC**. `main` = `b4df966`. Board state = Notion Tas
 **Headline findings (details and evidence in §13–§15):**
 
 - **Gates:** `main` and the combined baseline both pass every CI gate with the dependency versions CI last used. Merging #16, #18 and #19 together introduces no new failure; one merge conflict (`apps/backend/pyproject.toml`) needs resolving.
-- **Dependency drift:** with today's dependency resolution, `main` itself fails `mypy`. SQLAlchemy 2.1.0 reached PyPI on 24 Sep 2026 and 2.1.1, the version resolved here, on 25 Sep. `pyproject.toml` allows both.
-- **CSV path:** the upload path does not work end to end. The API-03 upload endpoint (#18) parses a valid 180-row file, writes **0 rows** to any table, and still marks the source `demo_data`. The UI (#16) never calls it. The Data-layer normalization works when called directly, but nothing in production calls it, and nothing writes `raw_api_responses`.
-- **Review leads:** all 16 were checked. Leads 1–5 are Hussein Elhaddad's 23 Sep reconciliation notes, and all five are **confirmed**. Of leads 6–16, 10 are confirmed (lead 16 only partly, on whether ING-01 supersedes DATA-03) and 1 is refuted: lead 13, because the `raw_api_responses` idempotency key *does* exist.
+- **Dependency drift:** with today's dependency resolution, `main` itself fails `mypy`. SQLAlchemy 2.1.0 reached PyPI on 24 Sep 2026 and 2.1.1, the version resolved here, on 25 Sep. `pyproject.toml` allows both. CI hit this on 29 Sep: this register's own PR (#20, run 36598495262) and the next `main` push run (36604830235) both failed Backend `mypy` with the same 5 errors.
+- **CSV path:** the upload path does not yet work end to end. Most of the missing work is scheduled in other tasks, and one defect sits in an open PR.
+  - The API-03 upload endpoint (#18) accepts and parses a valid 180-row file, which is what API-03's Definition of Done asks for. It writes **0 rows**. Saving rows is ING-01's Definition of Done (due 15 Oct), and ING-01 is one of API-03's completion gates (API-03 due 22 Oct).
+  - The defect: #18 also sets `data_sources.status` to `demo_data` from the Backend. INT-01 §3 assigns that field to the Data Layer, and API-03's Entry Contract says "fix PR #18 status now".
+  - The UI (#16) makes no upload request. UI-03 is scheduled to consume API-03's upload/status contract on 20 Oct.
+  - The Data-layer normalization works when called directly. The production call into it, including the `raw_api_responses` writer, is ING-01's.
+- **Review leads:** all 16 were checked. Leads 1–5 are the 23 Sep reconciliation notes (author not recorded on the cards). All five are **confirmed** as descriptions of the code, but not every one rests on a Definition of Done: lead 5's tenant-scoped grouping appears in no AI-02 Definition of Done, Entry Contract or completion gate, and organization-isolation tests are AI-07's Definition of Done. Of leads 6–16, 10 are confirmed (lead 16 only partly, on whether ING-01 supersedes DATA-03) and 1 is refuted: lead 13, because the `raw_api_responses` idempotency key *does* exist. §13.4 records, for each open item, whether it belongs to the task itself, waits on a dependency, or belongs to another task.
 - **Contract validators:** two of the five QA-01 validators are exit-0 placeholders, the contract covers 8 of 22 tables, and no CI job runs any of them.
 
 ## 2. Scope
@@ -35,7 +39,7 @@ Snapshot: **2026-09-29 13:56 UTC**. `main` = `b4df966`. Board state = Notion Tas
 - Placeholder tests, placeholder packages and CI wiring gaps.
 - A normal, failure, contrast and UI trace through the CSV upload path against real PostgreSQL.
 - A task-to-commit register for 24 tasks, plus ING-01 and QA-00.
-- Verification of the 16 review leads, of which leads 1–5 are Hussein Elhaddad's 23 Sep reconciliation notes.
+- Verification of the 16 review leads, of which leads 1–5 are the 23 Sep reconciliation notes (author not recorded on the cards).
 - Draft reviewer decisions for #16, #18 and #19 (delivered to the task owner separately, not posted).
 
 ### Out of Scope
@@ -125,7 +129,7 @@ No live Notion page, deployed environment or production data was used. `README.m
 |---|---|---|---|---|
 | This document | Markdown | No | Team, QA-00, reviewers | Evidence register |
 | Task-to-commit register | table (§13.4) | No | Board owners | 24 tasks + ING-01 + QA-00 |
-| Lead verdicts | table (§13.5) | No | Mohamed Hassan, Hussein Elhaddad | 16 leads; leads 1–5 are the 23 Sep reconciliation notes |
+| Lead verdicts | table (§13.5) | No | Mohamed Hassan; owners of DATA-05, QA-02, UI-03, API-03 and AI-02 | 16 leads; leads 1–5 are the 23 Sep reconciliation notes (author not recorded on the cards) |
 | Draft PR reviews for #16, #18, #19 | text | No | Mohamed Hassan (posts them himself) | Not part of this document. Verdicts summarized in §13.6 |
 | Follow-up map | list (§15) | No | Task owners | Findings mapped to existing cards |
 
@@ -135,6 +139,7 @@ No live Notion page, deployed environment or production data was used. `README.m
 - **Check results** use exactly `PASS`, `FAIL` or `NOT RUN — <reason>` (root `AGENTS.md`, "Verification Truthfulness").
 - **Board-Done acceptance** is labelled `Yes / Partial / No / Unverifiable`. "Yes (by tests)" means the task's tests pass and TRK-06 did not trace the behaviour further.
 - **Reconciled-task DoD items** are labelled `Met / Not yet / At risk`. "At risk" means the item looks done but has a defect that would stop it passing review.
+- **Scope of open items** (added 30 Sep after a Definition-of-Done sweep): each open item names the task whose Definition of Done, Entry Contract, completion gates or internal handoff requires it. Where it waits on another task, that task and its due date are given. "In window" means the owning task's revised deadline has not passed; an in-window item that is not yet built is not a fault. "Incorrect behaviour in PR" means submitted code already behaves against a Definition of Done line or contract clause, and it is the only basis for **Request changes** in §13.6. An expectation stated only in the 23 Sep reconciliation notes or the 24 Sep handoff notes (author not recorded on the cards) is labelled note-only.
 - **Claims** are labelled `Confirmed / Partly confirmed / Refuted / Unverified`. "Unverified" always states what was tried and what would verify it.
 - **Every fact carries a source:** a command and its output, a `file:line`, a commit SHA, a PR/CI URL, or a Notion export file name. `file:line` refers to the combined branch `79f84ba` unless prefixed `main:` or `pr/N:`.
 - **CI-equivalent environment:** `pyproject.toml` pins ranges, not versions, so gates were run with the dependency set CI last resolved (SQLAlchemy 2.0.53), and also with today's resolution (SQLAlchemy 2.1.1) where the result differs.
@@ -170,7 +175,7 @@ The traces checked these security properties:
 
 - **Organization isolation (API):** PASS for the paths traced. An upload to another org's data source returns 404 "Connector not found" (`connectors.py:106-133`, `:198-208`). An upload with no token returns 401. `get_auth_context` loads the org and membership from the JWT (`api/deps.py:38-70`).
 - **Organization isolation (Data, #16):** At risk. `upsert.py:232-242` and `:256-264` overwrite `organization_id` when a `(campaign_id, date)` row already exists. No test uses two organizations (D-30).
-- **Organization isolation (AI, #19):** At risk. `ai/anomaly/detector.py:71` groups by `campaign_id` only. The evaluation test gives every record a random `organization_id` (`tests/unit/ai/test_detector_evaluation.py:16`) and still passes.
+- **Organization isolation (AI, #19):** At risk. `ai/anomaly/detector.py:71` groups by `campaign_id` only. The evaluation test gives every record a random `organization_id` (`tests/unit/ai/test_detector_evaluation.py:16`) and still passes. No AI-02 Definition of Done line asks for tenant grouping; the 23 Sep reconciliation notes and the 24 Sep handoff note do (note-only). Organization-isolation tests are AI-07's Definition of Done (due 5 Nov), and tenant-scoped input contracts are ARCH-03's (due 8 Oct). Root `AGENTS.md` ("Add cross-tenant tests whenever a changed data path could cross this boundary") still applies to #19.
 - **Token exposure (API-03):** PASS for the responses observed. No token field appears in any response, and 422 bodies withhold the developer message (`connectors.py:225`).
 - **Secrets in logs:** a finding. `apps/backend/alembic/env.py:39` prints the full database URL, including the password, on every Alembic run (D-16).
 - **Frontend:** `apps/web/src/lib/mock-auth.ts:51-65` defines a hard-coded demo session, used by the login page's "Open demo workspace" (`login/page.tsx:38-41`). `middleware.ts:9` only checks that a cookie exists. The backend still requires a JWT, so no server data is exposed. On `main`, `auth.service.ts` accepted a hard-coded demo credential pair (`main:apps/web/src/services/auth.service.ts:4-20`); #16 replaces this with real API calls.
@@ -350,20 +355,20 @@ Field names are verbatim from Notion. Track is blank for every Done card, and on
 | Task | Member | Due | PR # | Merge commit | Task doc | Tests | Acceptance |
 |---|---|---|---|---|---|---|---|
 | DEV-01 | El-Farouk Omar | 23 Aug | none (direct commits) | `bfa2a15`, `99c668f` | missing | 2 × `assert True` | **Yes**: compose boots postgres/api/worker/web healthy; CI lints and tests. Caveat: legacy skeleton and two root commits (D-26) |
-| INT-01 | Mohamed Hassan | 20 Aug | n/a | not in repo (Notion PDF) | n/a | n/a | **Partial**: its own §5 leaves conflicts #1 and #13 pending. Owner acknowledgement Unverifiable. Repo diverges (D-23, D-24, D-29) |
-| PROD-01 | Mohamed Hassan | 21 Aug | n/a | not in repo (Notion PDF) | n/a | n/a | **Partial**: content complete, and the CSV template matches `parser.py:29-39`. Approval Unverifiable. The §4.6 demo flow can't be walked: no seeded user (D-22), dashboard is mock |
+| INT-01 | Mohamed Hassan | 20 Aug | n/a | not in repo (Notion PDF) | n/a | n/a | **Partial**: against "ownership boundaries … are frozen", its own §5 leaves conflicts #1 (token storage ownership) and #13 (connector_tokens schema) pending, and §1.1 and §2.2 disagree on who writes data_sources (D-24). Owner acknowledgement Unverifiable. Where the repo diverges (D-23, D-24, D-29), the fix belongs to the implementing or deciding tasks (§15) |
+| PROD-01 | Mohamed Hassan | 21 Aug | n/a | not in repo (Notion PDF) | n/a | n/a | **Unverifiable**: the KPI, CSV-template and seeded-anomaly lines are met (template matches `parser.py:29-39`), but "approved" and "shared" are not evidenced. The §4.6 demo flow can't be walked yet; that is not PROD-01's scope (seed user: QA-00, D-22; real-data dashboard: UI-04, due 22 Oct) |
 | UI-01 | Abdulrahman Ehab | 21 Aug | n/a | not in repo (`UI-wireframes.zip`) | n/a | n/a | **Unverifiable**: attachment not opened (out of TRK-06 scope) |
 | UI-02 | Abdulrahman Ehab | 24 Aug | #2 | `4b6e421` | missing | `home.test.tsx`: 1 (from scaffold `99c668f`) | **Partial**: app builds, runs and navigates. Services are mock (`lib/mock-data`). On `main` the auth service was a hard-coded mock |
-| API-01 | El-Farouk Omar | 25 Aug | #5 | `3adee87` | missing | `test_auth.py`: 6, `test_org_isolation.py`: 6, `test_security.py`: 2 | **Partial**: register, login and JWT work; isolation tests pass; cross-tenant access returns 404. The "approved demo user" path doesn't exist (D-22) |
+| API-01 | El-Farouk Omar | 25 Aug | #5 | `3adee87` | missing | `test_auth.py`: 6, `test_org_isolation.py`: 6, `test_security.py`: 2 | **Yes**: register, login and JWT work; isolation tests pass; cross-tenant access returns 404. `API-01_guidance.md:7` maps "Approved demo user/workspace auth path works" to sign-up and log-in, which work. The missing seeded login user (D-22) is QA-00's "browser E2E seed" |
 | WORK-01 | El-Farouk Omar | 25 Aug | #3 (rebase-merged; the same worker files also appear in #5) | `4ac4779` | missing | `test_lifecycle.py`: 38 | **Yes (by tests)**. Not traced (TRK-05 scope) |
 | WORK-02 | El-Farouk Omar | 27 Aug | #7 | `e739b72` | missing | `test_claim` 2, `test_dedup` 7, `test_loop` 7, `test_retry` 4, `test_timeout` 4 | **Yes (by tests)**. Completed At (28 Aug) is after Due |
 | QA-01 | Abdulrahman Ehab | 28 Aug | #8 | `52a94cc` | missing | 5 validators | **Partial**: 2 of 5 validators are placeholders, 8 of 22 tables are covered, and none runs in CI (§12) |
 | CONN-01 | Mohamed Hassan | 25 Aug | #1 | `3657dd8` | missing | `test_parser.py`: 14 | **Yes**: typed errors and RawResponse confirmed live. No approved sample file is in the repo |
-| CONN-02 | Mohamed Hassan | 27 Aug | #4 | `c4277d7` | missing | 11 + 7 + 14 + 7 (the 7 real-Postgres tests are CI-skipped) | **Partial**: crypto, repository and health are tested. No real provider exchanger exists (`connectors.py:71-97` → 503) |
+| CONN-02 | Mohamed Hassan | 27 Aug | #4 | `c4277d7` | missing | 11 + 7 + 14 + 7 (the 7 real-Postgres tests are CI-skipped) | **Yes (boundary)**: crypto, repository, health and the `TokenExchanger` contract are tested. No real provider exchanger exists (`connectors.py:71-97` → 503); #18 records that CONN-02 "does not provide a real provider HTTP implementation" (`connectors.py:74`), and the first real provider read path is CONN-03's Definition of Done (due 29 Oct). The audit author owns CONN-02; the same boundary rule is applied as for API-03's OAuth item |
 | API-04 | Mohamed Hassan | 27 Aug | #6 | `19c0cd4` | `docs/api/API-04-analysis-refresh-and-job-status.md` (direct push `b9333b3`) | `test_analysis_refresh` 11, `test_job_status` 8 | **Yes (by tests)** |
 | DATA-01 | Ahmed Ibrahem | 23 Aug | none. The SQL zip was ported to Alembic `0001`–`0009` inside #4 | `c4277d7` | missing (Notion `README_DATA01.md`) | via all DB tests | **Yes**: a fresh database builds from migrations; the round trip passes; roles and RLS are present (`0007`) |
-| DATA-02 | Ahmed Ibrahem | 23 Aug | none (`0009` in #4) | `c4277d7` | missing (Notion `README_DATA02.md`) | none | **Partial**: 90-day seed loads (4 campaigns, 360 `daily_metrics` rows). No regeneration or validation script in the repo; no users seeded |
-| DATA-03 | Ahmed Ibrahem | 25 Aug | none | **not in repo** | missing | Notion `test_ingestion.py` (not run) | **No (in repo)**: nothing writes `raw_api_responses`. Notion `ingestion.py` (async) was never ported |
+| DATA-02 | Ahmed Ibrahem | 23 Aug | none (`0009` in #4) | `c4277d7` | missing (Notion `README_DATA02.md`) | none | **Unverifiable**: the 90-day seed loads (4 campaigns, 360 `daily_metrics` rows). `README_DATA02.md:29` names `generate_demo_dataset.py` as the regeneration script, but it is in neither the export nor the repo, so regeneration was not run. Login users are not in DATA-02's Definition of Done (D-22 → QA-00) |
+| DATA-03 | Ahmed Ibrahem | 25 Aug | none | **not in repo** | missing | Notion `test_ingestion.py` (not run) | **Unverifiable**: the Notion `ingestion.py` defines `_persist_raw_response` (`ingestion.py:86`) but was not executed and is not in the repo. Nothing in the repo writes `raw_api_responses`; the production writer is ING-01's Definition of Done ("immutable raw storage", due 15 Oct) |
 | DATA-04 | El-Farouk Omar | 3 Sep | #9, #10 | `3ac4589`, `e41f92d` | missing | `test_normalize` 4, `test_adapters` 1, `test_mappings` 4, `test_entity_normalization` 2 (CI-skipped) | **Yes**: normalization and idempotent upsert confirmed (contrast replay). #9 merged with Backend CI red |
 | AI-01 | Hussein Elhaddad | 3 Sep | #11 | `b433888` | `docs/ai/AI-01-feature-pipeline.md` | 14 + 11 + 3 | **Yes (by tests)**. The loader reads `daily_metrics`, not `feature_daily` (D-29) |
 | AI-03 | Abdulrahman Ehab | 5 Sep | #14 | `8d67c28` | `docs/ai/AI-03-forecasting.md` | 18 + 1 | **Yes (by tests)**. Evaluation figures not re-derived |
@@ -373,44 +378,44 @@ Field names are verbatim from Notion. Track is blank for every Done card, and on
 
 - **DATA-05**: Member youssef halawa. Track "Connector & Data". Due 8 Oct 2026. PR #16, not merged. Doc: `docs/data/DATA-05-canonical-daily-metrics.md`. Tests: `test_normalize.py` +2, `test_connector_to_canonical_e2e.py` 1.
   - Rows follow INT-01: **Met** (in #16).
-  - Totals reconcile within tolerance: **Not yet**. There is one 5-row, single-org fixture and no tolerance is defined.
-  - Disallowed PII removed: **Not yet**. There is no PII handling or test, and doc `:156` says PII is not part of this task.
-  - Semantics consistent across consumers: **At risk** (D-30 org-reassigning upsert; D-29 AI reads `daily_metrics`).
+  - Totals reconcile within tolerance: **Not yet** (DATA-05's own; in window). There is one 5-row, single-org fixture, and neither INT-01 nor PROD-01 records an agreed tolerance.
+  - Disallowed PII removed: **Not yet** (DATA-05's own; in window). There is no PII handling or test; doc `:156` says PII is not part of this task, which contradicts this Definition of Done line, and no contract defines "disallowed" PII.
+  - Semantics consistent across consumers: **At risk** (in window, incorrect behaviour in PR): D-30, the org-reassigning upsert with no multi-org fixture, which the Entry Contract asks for. D-29 (AI reads `daily_metrics`) is not DATA-05's: no card assigns `feature_daily`.
 - **QA-02**: Member youssef halawa. Track "System QA". Due 29 Oct 2026. PR #16, not merged. Doc: `docs/testing/QA-02-connector-to-canonical-e2e.md`. Tests: E2E 1.
-  - CSV → raw → staging → canonical: **Not yet**. The raw row is inserted with SQL.
+  - CSV → raw → staging → canonical: **Not yet**. The raw row is inserted with SQL. Waits on ING-01 (15 Oct), QA-00 (15 Oct) and API-03 (22 Oct), all completion gates; QA-02's window is 9–29 Oct.
   - Totals reconcile, no duplicates: **Met** (fixture scope only).
-  - Failure behavior clear: **Not yet**. Only one row warning is asserted.
+  - Failure behavior clear: **Not yet**. Only one row warning is asserted. Waits on the same gates; ING-01 must first prove partial failure and retry idempotency.
   - GA4 path included: **Met** (via `ga_events`).
 - **UI-03**: Member Abdulrahman Ehab (24 Sep handoff; Youssef Halawa credited and reviews). Track "Frontend". Due 22 Oct 2026. PR #16, not merged. Doc: `docs/ui/UI-03-login-workspace-connector-setup.md`. Tests: `entry-flow.test.tsx` 2.
   - Log in and create workspace: **Met**.
-  - CSV upload usable: **Not yet**. No request is made.
-  - Connection/freshness visible: **Not yet**. None is shown.
+  - CSV upload usable: **Not yet**. No request is made. Required by UI-03's Definition of Done; waits on API-03 (a completion gate), whose upload/status contract UI-03 consumes on 20 Oct ("verify real import and errors Thu 22 Oct").
+  - Connection/freshness visible: **Not yet**. None is shown. Waits on API-03's status contract (20 Oct) and ING-01's persisted-readiness status (15 Oct).
 - **API-03**: Member Ahmed Ibrahem. Track "Backend". Due 22 Oct 2026. PR #18, not merged. Doc: `docs/api/API-03-connector-api-endpoints.md`. Tests: `test_connectors_api.py` 13.
-  - Setup and CSV upload: **At risk**. The endpoint works but sets a false `demo_data` status and diverges from the INT-01 shape.
-  - OAuth code passed to Connector: **Not yet**. There is no exchanger, so it returns 503 (code read).
+  - Setup and CSV upload: **At risk** (in window, incorrect behaviour in PR). The endpoint accepts and parses the upload, which meets "Backend initiates connector setup and accepts CSV upload". But the Backend route writes `data_sources.status = 'demo_data'` (`connectors.py:237-251`), a field INT-01 §3 assigns to the Data Layer, and the Entry Contract says "fix PR #18 status now". Persisting rows is not in this Definition of Done line; it arrives through ING-01 (completion gate, due 15 Oct). The response shape and path are ARCH-02's decision (D-23, due 8 Oct).
+  - OAuth code passed to Connector: **Met at the boundary**. The route passes the code to the Connector's `TokenExchanger` dependency. No real provider exchanger exists, so it returns 503 (code read); a real provider path is CONN-03's (due 29 Oct).
   - Status returned safely: **Met**.
   - Tokens never in UI or logs: **Met**.
 - **AI-02**: Member Hussein Elhaddad (24 Sep handoff; Ahmed Ibrahem credited and reviews). Track "AI". Due 8 Oct 2026. PR #19, not merged; #17 closed. Doc: `docs/ai/AI-02-anomaly-detection.md`. Tests: `test_detector.py` 7, `test_detector_evaluation.py` 1.
   - Ensemble produces severity, direction and score: **Met**.
-  - ≥80% recall and ≤5% FPR on seeded data: **Not yet**. The evaluation is a single case (1 campaign, 1 abnormal day) and is not run on the PROD-01 seeded cases.
-  - Tenant-scoped grouping (from the note): **At risk** (`detector.py:71`).
+  - ≥80% recall and ≤5% FPR on seeded data: **Not yet** (AI-02's own; in window, due 8 Oct). The evaluation is a single case (1 campaign, 1 abnormal day) and is not run on the PROD-01 seeded cases.
+  - Tenant-scoped grouping: note-only for AI-02. It comes from the 23 Sep reconciliation notes and the 24 Sep handoff note; no AI-02 Definition of Done, Entry Contract or completion-gate line asks for it. `detector.py:71` groups by `campaign_id` only. Organization-isolation tests are AI-07's Definition of Done (due 5 Nov) and tenant-scoped input contracts are ARCH-03's (due 8 Oct).
 
 **New tasks (2026-09)**
 
-- **ING-01** — youssef halawa · Connector & Data · Backlog · due 15 Oct 2026. `Depends On (2026-09)`: ARCH-04, CONN-01, DATA-04, DATA-05. Owns leads 1, 2, 3 (server side) and 6, the DATA-03 raw writer, idempotency, tenant scope and reconciliation on seeded CSV (§15).
+- **ING-01** — youssef halawa · Connector & Data · Backlog · due 15 Oct 2026. `Depends On (2026-09)`: ARCH-04, CONN-01, DATA-04, DATA-05. Owns lead 1 (persistence part), leads 2, 3 (server side) and 6, the DATA-03 raw writer, idempotency, tenant scope and reconciliation on seeded CSV (§15).
 - **QA-00** — Mohamed Hassan · System QA · Backlog · due 15 Oct 2026. `Depends On (2026-09)`: TRK-06. Owns the placeholder validators, CI wiring (lead 8), the browser E2E seed (D-22), `TEST_DATABASE_URL` in CI (D-15) and the CI migration no-op (D-17) (§15).
 
-### 13.5 Hussein Elhaddad's 23 Sep notes and the review leads
+### 13.5 The 23 Sep reconciliation notes (author not recorded on the cards) and the review leads
 
-Reconciliation notes, quoted from the Notion export `Notes / Comments`:
+Reconciliation notes, quoted from the Notion export `Notes / Comments`. The cards do not record who wrote them, and their authority is unconfirmed. "Confirmed" means the note describes the code accurately; the Definition-of-Done basis for each item is in §13.4.
 
 | # | Task · note | Verdict | Evidence |
 |---|---|---|---|
-| 1 | API-03: "Correct false demo_data status on parse-only CSV upload; connect upload to raw/canonical persistence or represent pending state truthfully" | **Confirmed** | §13.3 normal trace; `connectors.py:237-251` |
+| 1 | API-03: "Correct false demo_data status on parse-only CSV upload; connect upload to raw/canonical persistence or represent pending state truthfully" | **Confirmed** | §13.3 normal trace; `connectors.py:237-251`. Status write: API-03 Entry Contract and INT-01 §3. Persistence: ING-01 (§13.4) |
 | 2 | QA-02: "PR #16 tests seeded raw→canonical, but full CSV upload→raw→staging→canonical path remains unproven" | **Confirmed** | `test_connector_to_canonical_e2e.py:102-115` |
 | 3 | UI-03: "login flow exists, but selected CSV is not imported server-side" | **Confirmed** (stronger: no connector call at all) | UI trace, 2 API calls total |
 | 4 | DATA-05: "Review canonical metric/GA normalization, reconciliation and PII tests"; entry contract "multi-org fixture" | **Confirmed** | No tolerance, no PII tests, single-org fixture; new D-30 |
-| 5 | AI-02: "Complete tenant-scoped grouping by organization + campaign, add cross-tenant regression and evaluation evidence" | **Confirmed** | `detector.py:71`; `test_detector_evaluation.py:16,44-73` |
+| 5 | AI-02: "Complete tenant-scoped grouping by organization + campaign, add cross-tenant regression and evaluation evidence" | **Confirmed** | `detector.py:71`; `test_detector_evaluation.py:16,44-73`. Evaluation: AI-02 Definition of Done. Tenant grouping: note-only for AI-02; AI-07/ARCH-03 by Definition of Done |
 
 Earlier independent review and board leads:
 
@@ -432,9 +437,9 @@ Earlier independent review and board leads:
 
 | PR | Draft verdict | Basis |
 |---|---|---|
-| #16 | **Comment** | Gates green. DATA-05, QA-02 and UI-03 DoD items open (§13.4). New risk D-30. The doc overstates verification (D-25) |
-| #18 | **Request changes** | The review's own "do not merge until the status is truthful" is a blocking statement, so the verdict matches it. The false `demo_data` status is written into `data_sources` status fields, which INT-01 §3 assigns to the Data Layer, and UI-03 and ING-01 are about to build on it. Also: INT-01 shape and path divergence (D-23), `pyproject.toml` conflict with #19 (lead 10) |
-| #19 | **Comment** | Ensemble solid. Evaluation evidence and tenant grouping not yet done. No production caller yet |
+| #16 | **Comment** | Gates green. DATA-05's open items are its own and in window (due 8 Oct); QA-02's and UI-03's wait on ING-01 and API-03 (§13.4). D-30 is incorrect behaviour in the PR but latent: current callers cannot trigger it, so it doesn't break another layer as merged today. The request for a two-organization regression test stands (DATA-05 Entry Contract "multi-org fixture"; root `AGENTS.md` cross-tenant test rule). The docs overstate verification (D-25) |
+| #18 | **Request changes** | In window, incorrect behaviour in PR: on every upload the Backend route writes `data_sources.status` (`connectors.py:237-251`), which INT-01 §3 ("One writer per table, always") assigns to the Data Layer, so merging would add a second writer to a Data-owned field. API-03's Entry Contract says "fix PR #18 status now". Not part of the basis: row persistence (ING-01's Definition of Done), the INT-01 shape and path divergence (D-23, ARCH-02's decision) and the `pyproject.toml` conflict with #19 (lead 10), which whichever PR merges second resolves |
+| #19 | **Comment** | Ensemble solid. Evaluation evidence (AI-02's own Definition of Done, due 8 Oct) not yet done. Tenant grouping is note-only for AI-02 (AI-07/ARCH-03 by Definition of Done). No production caller yet |
 | #17 | none | Closed |
 
 No PR gets **Approve**, because none fully meets its task's Definition of Done.
@@ -445,7 +450,7 @@ No PR gets **Approve**, because none fully meets its task's Definition of Done.
 
 Each D-number cited in this document is defined by its bullet in this section (here or under "Board and process observations"). The numbers come from the audit's working log, so gaps in the sequence are expected.
 
-- **D-14 Dependency drift:** `pyproject.toml:14` `sqlalchemy>=2.0,<3.0` now resolves to 2.1.1 (PyPI 25 Sep 2026; 2.1.0 was 24 Sep). A CI re-run of unmodified `main` would fail `mypy` (5 errors). CI last passed with 2.0.52/2.0.53.
+- **D-14 Dependency drift:** `pyproject.toml:14` `sqlalchemy>=2.0,<3.0` now resolves to 2.1.1 (PyPI 25 Sep 2026; 2.1.0 was 24 Sep). A CI re-run of unmodified `main` would fail `mypy` (5 errors). CI last passed with 2.0.52/2.0.53. Update 30 Sep: this happened. #20's PR run 36598495262 and the `main` push run 36604830235 (merge `c2b3b62`) failed Backend with the same 5 errors.
 - **D-15 Skipped real-Postgres tests:** CI starts Postgres but never sets `TEST_DATABASE_URL`, so 9 real-Postgres tests have never run in CI. They pass locally.
 - **D-16 Password in logs:** `alembic/env.py:39` prints the database URL, including the password, to stdout on every run.
 - **D-17 No-op migration check:** CI's migration step runs after pytest has already migrated, so it applies nothing, and downgrades are never tested in CI.
@@ -502,8 +507,8 @@ Findings mapped to existing cards. A "candidate" mapping means no DoD line names
 - `DATA-05` — youssef halawa — reconciliation tolerance, PII rule and tests, a two-org regression for the upsert (D-30), then review and merge #16.
 - `QA-02` — youssef halawa — real ingress E2E after ING-01 and the corrected API-03; failure and partial-failure assertions; correct the PR doc's "Implemented and verified" (D-25).
 - `UI-03` — Abdulrahman Ehab (Youssef Halawa reviews) — call the upload API, show truthful status and freshness, surface upload errors (§11 UI row).
-- `API-03` — Ahmed Ibrahem — truthful status, INT-01-aligned response, resolve the `pyproject.toml` conflict with #19 (lead 10).
-- `AI-02` — Hussein Elhaddad (Ahmed Ibrahem reviews) — group by (organization, campaign), add a cross-tenant regression, evaluate on the PROD-01 seeded cases, and update the Notion Deliverables link from #17 to #19 (lead 15).
+- `API-03` — Ahmed Ibrahem — stop writing `data_sources.status` from the Backend (Entry Contract "fix PR #18 status now"; INT-01 §3); adopt ING-01's ingestion call (completion gate, handoff 20 Oct); align the response once ARCH-02 decides it (lead 7, D-23). The `pyproject.toml` conflict with #19 (lead 10) falls to whichever PR merges second.
+- `AI-02` — Hussein Elhaddad (Ahmed Ibrahem reviews) — evaluate on the PROD-01 seeded cases (Definition of Done) and update the Notion Deliverables link from #17 to #19 (lead 15). Grouping by (organization, campaign) with a cross-tenant regression is note-only for AI-02 (23 Sep notes, 24 Sep handoff note); by Definition of Done it belongs to AI-07 (due 5 Nov), with ARCH-03's tenant-scoped input contract (due 8 Oct).
 - **Proposed new work (no existing card covers it; owner to be assigned by the project lead):**
   1. Repo hygiene: remove the unused legacy root skeleton and add `.gitattributes` to normalize line endings (D-26, lead 10 cause).
   2. Board hygiene (minor): remove the copied "Temporarily reassigned from Youssef Halawa…" line from the QA-02 card (lead 14), and decide the Track field for Done cards.
@@ -524,6 +529,7 @@ Findings mapped to existing cards. A "candidate" mapping means no DoD line names
   - ARCH-01..06 and TRK-01..05 (Member / Track / Status / Due / DoD only)
 - **Live Notion check:** QA-02 Member = youssef halawa, confirmed by Mohamed Hassan on the live card on 29 Sep 2026 (resolves lead 14's owner question).
 - **Earlier single-card exports** (29 Sep 15:25–15:38): no content difference from the full export.
+- **Board freshness:** every board fact in this register is as of the Notion export of 29 Sep 2026 15:57 (Africa/Cairo). Live Notion was not reachable on 29 or 30 Sep. Cards to re-export before this register is next relied on, because their due dates, entry contracts, handoffs or Definitions of Done drive the scope labels in §13.4: DATA-05, QA-02, UI-03, API-03, AI-02, ING-01, QA-00, ARCH-02, ARCH-03, ARCH-04, ARCH-06, CONN-03, AI-07, UI-04, WORK-03.
 - **Contracts:** `INT-01_Canonical_MVP_Contract_Pack.pdf` (§1.1–1.4 p.2–4, §2.1 p.5, §2.7 p.7, §3 p.8, §4.3 p.9, §4.4 p.10); `PROD-01_Month-One_Scope_Freeze.pdf` (§3 p.4, §4.2 p.5, §4.6 p.7); `tests/contracts/canonical.json`.
 - **ADRs:** none (`docs/adr/.gitkeep` only).
 - **Repository:** `main` `b4df966e7bc018d4b252886c8c70c1369968b76a`. Combined baseline (local only) `79f84ba4f14cf97590ae6bb72396f6230fc4bd6e`, built from merges `178fe3a`, `e9bbfdd`, `79f84ba`.
