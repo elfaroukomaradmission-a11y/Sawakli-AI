@@ -6,7 +6,7 @@ This task implements the first-use web entry flow for Sawakli AI. It gives a use
 
 The flow belongs to the Web layer and consumes the existing Backend authentication contract. It displays connection state and import metadata without rendering passwords, access tokens, OAuth codes, or provider secrets.
 
-Status: **Implemented** for the web entry experience. CSV selection is currently a client-side setup state; server-side import persistence remains a follow-up because no CSV upload API contract exists in the current Backend surface.
+Status: **Implemented** for the web entry and CSV import experience. The authenticated CSV path now creates a source, uploads the file, persists raw evidence, normalizes canonical facts, and reports source freshness. Provider OAuth remains a follow-up.
 
 ## 2. Scope
 
@@ -16,7 +16,7 @@ Status: **Implemented** for the web entry experience. CSV selection is currently
 - Authenticated workspace hydration through `/api/auth/me`
 - Account and first-workspace creation through `/api/auth/register`
 - Explicit demo workspace entry
-- CSV file selection with extension, filename, size, and ready-to-import state
+- CSV file selection and authenticated upload through the Connector API
 - Safe connector status display for supported OAuth connector types
 - Loading, error, unauthorized/request-failure, empty-source, and selected-source states
 - Focused flow tests for source selection and safe status presentation
@@ -24,7 +24,7 @@ Status: **Implemented** for the web entry experience. CSV selection is currently
 ### Out of Scope
 
 - Adding a new Backend workspace-list or organization-switch endpoint
-- Persisting CSV bytes or normalized rows to the Backend
+- Multi-organization switching and provider OAuth exchange
 - Implementing OAuth redirects, provider token exchange, or token storage
 - Displaying provider credentials or connection secrets in the browser
 - Changing dashboard analytics or campaign data contracts
@@ -109,7 +109,7 @@ Validation:
 - OAuth connector rows display availability and connector type only. No token, authorization code, or credential input is rendered.
 - The dashboard route is not opened when no source has been selected.
 - Request failures are shown as user-safe messages from the Backend `detail` field or a generic fallback; raw response bodies are not rendered.
-- Missing backend CSV persistence is not represented as a successful import. The current UI records selection readiness only.
+- CSV import success is shown only after the Backend returns a successful canonical import response.
 
 ## 8. Public Interfaces
 
@@ -164,7 +164,7 @@ Calls `GET /api/auth/me` with a bearer Authorization header and returns the auth
 - Organization identity comes from the authenticated Backend response.
 - The UI does not accept an organization ID from the URL to establish scope.
 - OAuth connectors are status-only until an approved authorization endpoint exists.
-- The CSV screen does not upload or expose file contents; it only confirms local selection metadata.
+- The CSV screen uploads the selected file through the authenticated Connector API; it does not expose credentials or provider tokens.
 
 ## 11. Error and Edge-Case Behavior
 
@@ -176,7 +176,7 @@ Calls `GET /api/auth/me` with a bearer Authorization header and returns the auth
 | Backend unavailable | Auth screen displays a safe request failure message and remains usable for retry |
 | Missing source | Continue displays an alert and keeps the user on setup |
 | Non-CSV file | Selection is cleared and the user is asked to choose a CSV |
-| Empty CSV | Selection readiness is shown only; server parsing is deferred until the upload contract exists |
+| Empty CSV | Backend parser rejects the file and marks the source failed without canonical rows |
 | OAuth unavailable | Connector displays availability state only; no secret field is offered |
 | Expired/invalid session | Backend `/me` failure prevents session hydration and login reports failure |
 | Token or credential error | Token is not rendered; only a generic request failure is shown |
@@ -190,13 +190,13 @@ Calls `GET /api/auth/me` with a bearer Authorization header and returns the auth
 
 ### Integration Tests
 
-The intended integrated browser flow is:
+The integrated flow is:
 
 1. Open `/login`.
 2. Choose `Open demo workspace`.
 3. Choose `Load Sawakli demo data`.
-4. Continue to `/dashboard`.
-5. Confirm that source status is visible and no credential/token text is rendered.
+4. Select a CSV and continue to upload it.
+5. Confirm that the API returns sync status/freshness and no credential/token text is rendered.
 
 Browser evidence was captured from the running containerized Web service for the login screen and connector/demo setup screen. The screenshots are attached to the QA handoff conversation.
 
@@ -233,10 +233,10 @@ Results:
 
 ## 14. Known Limitations
 
-- CSV selection is currently a safe client-side readiness state, not a persisted server import. A CSV upload API contract is required to complete the import.
+- CSV upload now persists raw evidence and canonical rows through the Connector API; a larger production ingestion job and progress polling remain follow-up work.
 - Multi-organization selection/switching is not implemented because the current Backend auth contract returns one organization and exposes no organization list endpoint.
 - OAuth connector rows show availability but do not initiate provider authorization because no approved frontend/backend OAuth route is present in the current contract.
-- Full lint, type-check, unit test, and build remain pending a working host frontend dependency installation. The integrated browser click could not be completed in the shared browser because its reported viewport was `0x0`; API and container smoke checks passed.
+- Full host frontend test execution and Docker build were not rerun in the latest edit because Docker Desktop was unavailable; TypeScript/editor diagnostics remain clean and the backend upload API tests passed.
 
 ## 15. Follow-Up Tasks
 

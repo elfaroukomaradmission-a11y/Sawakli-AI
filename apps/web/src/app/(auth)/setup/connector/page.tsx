@@ -16,6 +16,7 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import { setSession, DEMO_SESSION, getSession } from '@/lib/mock-auth'
+import { setupCsvSource, uploadCsv } from '@/services/connectors.service'
 
 type SourceChoice = 'demo' | 'csv' | 'ga4' | 'google-ads' | null
 
@@ -31,6 +32,8 @@ export default function ConnectorSetupPage() {
   const [fileName, setFileName] = useState('')
   const [fileSize, setFileSize] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
 
   function handleFile(file: File | undefined) {
     setError('')
@@ -47,13 +50,41 @@ export default function ConnectorSetupPage() {
     setSource('csv')
   }
 
-  function continueToDashboard() {
+  async function continueToDashboard() {
     if (!source) {
       setError('Choose demo data or select a CSV before continuing.')
       return
     }
     if (source === 'ga4' || source === 'google-ads') {
       setError('OAuth authorization for this connector is not available yet. Choose demo data or CSV to continue.')
+      return
+    }
+    if (source === 'csv') {
+      const session = getSession()
+      if (!session || !fileName) {
+        setError('Your session or selected CSV is missing. Please start again.')
+        return
+      }
+      const fileInput = inputRef.current
+      const file = fileInput?.files?.[0]
+      if (!file) {
+        setError('Choose the CSV file again before continuing.')
+        return
+      }
+      setError('')
+      setLoading(true)
+      setStatusMessage('Uploading and importing your CSV...')
+      try {
+        const setup = await setupCsvSource(session.access_token)
+        const result = await uploadCsv(session.access_token, setup.data_source_id, file)
+        setStatusMessage(`Imported ${result.row_count} rows successfully.`)
+        router.push('/dashboard')
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : 'CSV import failed. Please try again.')
+        setStatusMessage('')
+      } finally {
+        setLoading(false)
+      }
       return
     }
     if (!getSession()) setSession(DEMO_SESSION)
@@ -133,8 +164,11 @@ export default function ConnectorSetupPage() {
 
       <div className="safe-note"><ShieldCheck /><span>No API keys or provider tokens are requested on this screen. Selected connectors still require OAuth authorization.</span></div>
 
-      <button type="button" onClick={continueToDashboard} className="btn btn-primary setup-submit">
-        <ArrowRight /> Continue to workspace
+      {statusMessage && <div className="safe-note" role="status"><CheckCircle2 /><span>{statusMessage}</span></div>}
+
+      <button type="button" onClick={continueToDashboard} disabled={loading} className="btn btn-primary setup-submit" style={{ opacity: loading ? 0.65 : 1 }}>
+        {loading ? <UploadCloud className="spin" /> : <ArrowRight />}
+        {loading ? 'Importing...' : 'Continue to workspace'}
       </button>
 
       <p className="setup-back"><Link href="/setup/organization">Back to workspace setup</Link></p>
