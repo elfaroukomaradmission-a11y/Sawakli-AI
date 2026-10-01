@@ -74,6 +74,8 @@ UI shows success, sync status, and last sync time
   dashboard without making an API request; dashboard values remain explicitly labelled as demo data.
 - `/samples/sawakli-campaign-data.csv` is the approved user-facing example. The fixed CSV schema belongs
   to Connector/Data; the UI presents it but does not infer arbitrary third-party column meanings.
+- The sample is a public static file and can be downloaded before authentication; it contains no
+  workspace or provider data.
 - Parser warnings are shown; raw parsed rows are not rendered.
 - A successful import means the Backend completed its current raw-to-canonical path. It does not
   mean that dashboard mock cards have been replaced by API-02 data.
