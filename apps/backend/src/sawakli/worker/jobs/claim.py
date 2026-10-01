@@ -1,11 +1,12 @@
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import Select, case, select
 
 from sawakli.db.models.jobs import Job
 
 
-def claim_next_job() -> Select[Job]:
+def claim_next_job() -> Select[Any]:
     """Build the query for the highest-priority pending job."""
     priority_rank = case(
         (Job.priority == "HIGH", 0),
