@@ -433,6 +433,23 @@
 .connector-heading h2, .upload-result h2 { font-size: 14px; }
 .connector-heading p, .upload-result p, .connector-unavailable span { color: var(--color-text-muted); font-size: 12px; }
 
+.csv-template {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-light);
+}
+
+.csv-template strong { font-size: 13px; }
+.csv-template p { margin-top: 2px; color: var(--color-text-muted); font-size: 12px; }
+.csv-template .btn { flex: 0 0 auto; max-width: 100%; white-space: nowrap; }
+
 .upload-zone {
   display: flex;
   width: 100%;

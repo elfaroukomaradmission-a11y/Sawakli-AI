@@ -52,4 +52,16 @@ describe('ConnectorSetupPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a CSV file to continue.')
     expect(createCsvConnector).not.toHaveBeenCalled()
   })
+
+  it('lets a user skip optional import and provides the approved sample CSV', () => {
+    render(<ConnectorSetupPage />)
+
+    const sample = screen.getByRole('link', { name: 'Download sample CSV' })
+    expect(sample).toHaveAttribute('href', '/samples/sawakli-campaign-data.csv')
+    expect(sample).toHaveAttribute('download')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(push).toHaveBeenCalledWith('/dashboard')
+    expect(createCsvConnector).not.toHaveBeenCalled()
+  })
 })

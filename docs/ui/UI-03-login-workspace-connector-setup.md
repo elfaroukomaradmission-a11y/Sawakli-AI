@@ -11,7 +11,8 @@ claiming that the current dashboard cards are real data.
 ### In Scope
 
 - First-workspace creation through API-01 registration and authenticated login/current-user lookup.
-- CSV selection, import progress, safe errors, parsed-row count, warnings, sync status, and freshness.
+- Optional CSV selection, import progress, safe errors, parsed-row count, warnings, sync status, and freshness.
+- An in-product approved sample CSV download and a short required-column explanation.
 - Explicit unavailable OAuth state with no secret/token input.
 
 ### Out of Scope
@@ -69,6 +70,10 @@ UI shows success, sync status, and last sync time
 - `POST /api/connectors/csv/{data_source_id}/upload` receives multipart field `file`.
 - “CSV imported” is displayed only after API success with `sync_status: success`.
 - The continuation button remains disabled unless `sync_status` is `success`.
+- Import is recommended for the demo but not required to enter the workspace. “Skip for now” opens the
+  dashboard without making an API request; dashboard values remain explicitly labelled as demo data.
+- `/samples/sawakli-campaign-data.csv` is the approved user-facing example. The fixed CSV schema belongs
+  to Connector/Data; the UI presents it but does not infer arbitrary third-party column meanings.
 - Parser warnings are shown; raw parsed rows are not rendered.
 - A successful import means the Backend completed its current raw-to-canonical path. It does not
   mean that dashboard mock cards have been replaced by API-02 data.
@@ -118,8 +123,8 @@ route verifies source ownership. Safe error messages are displayed without rende
 
 ### Unit Tests
 
-- `connector-setup.test.tsx` proves source setup, import request, successful sync display, and
-  non-CSV rejection.
+- `connector-setup.test.tsx` proves source setup, import request, successful sync display, non-CSV
+  rejection, optional skip, and approved sample download.
 
 ### Integration Tests
 
