@@ -15,7 +15,7 @@ import {
 import Link from 'next/link'
 import { useAnomalies } from '@/hooks/useAnomalies'
 import { useRecommendations } from '@/hooks/useRecommendations'
-import { getSession } from '@/lib/mock-auth'
+import { getSession } from '@/lib/session'
 
 const KPI_DATA = [
   {
@@ -72,6 +72,10 @@ export default function DashboardPage() {
 
   return (
     <>
+      <div className="demo-notice" role="status">
+        <strong>Demo interface data</strong>
+        <span>CSV validation does not yet populate dashboard metrics. ING-01 and API-02 own that future integration.</span>
+      </div>
       {/* KPI Row */}
       <div className="kpi-grid">
         {KPI_DATA.map((kpi) => (

@@ -1,20 +1,40 @@
-// TODO: import apiClient from '@/lib/api-client'
-import type { AuthResponse } from '@/types'
+import { apiRequest } from '@/lib/api-client'
+import type { AuthResponse, MeResponse, Organization, User } from '@/types'
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  // TODO: const { data } = await apiClient.post<AuthResponse>('/api/auth/login', { email, password })
-  // TODO: return data
+  return apiRequest<AuthResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
-  if (email === 'demo@fashionbrandx.com' && password === 'demo') {
-    return {
-      user: {
-        id: 'demo-001',
-        name: 'Ahmed Hassan',
-        email: 'demo@fashionbrandx.com',
-        role: 'admin',
-      },
-      access_token: 'demo-token-sawakli-2026',
-    }
-  }
-  throw new Error('Invalid email or password')
+type RegisterResponse = {
+  user: User
+  organization: Organization
+}
+
+export async function register(
+  name: string,
+  email: string,
+  password: string,
+  organizationName: string,
+): Promise<RegisterResponse> {
+  return apiRequest<RegisterResponse>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+      organization_name: organizationName,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+export function readMe(accessToken: string): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/api/auth/me', {
+    method: 'GET',
+    accessToken,
+  })
 }

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const AUTH_ROUTES = ['/login', '/setup/organization', '/setup/connector']
-const PUBLIC_ROUTES = [...AUTH_ROUTES]
+const PUBLIC_ROUTES = ['/login', '/setup/organization']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -17,7 +16,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  if (hasAuth && AUTH_ROUTES.some((route) => pathname === route)) {
+  if (hasAuth && pathname === '/login') {
     const dashboardUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(dashboardUrl)
   }
