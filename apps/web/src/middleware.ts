@@ -17,7 +17,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  if (hasAuth && AUTH_ROUTES.some((route) => pathname === route)) {
+  const redirectsAuthenticatedUser = ['/login', '/setup/organization']
+
+  if (hasAuth && redirectsAuthenticatedUser.some((route) => pathname === route)) {
     const dashboardUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(dashboardUrl)
   }

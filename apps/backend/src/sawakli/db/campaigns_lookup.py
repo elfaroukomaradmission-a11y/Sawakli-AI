@@ -34,7 +34,7 @@ def find_missing_campaign_ids(
     if not campaign_ids:
         return set()
 
-    found_ids = set(
+    found_ids: set[UUID] = set(
         db.scalars(
             select(_campaigns.c.id).where(
                 _campaigns.c.organization_id == organization_id,

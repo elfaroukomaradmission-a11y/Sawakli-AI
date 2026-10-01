@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Brain, LogIn, AlertCircle } from 'lucide-react'
-import { login } from '@/services/auth.service'
+import { Brain, LogIn, AlertCircle, LoaderCircle, PlayCircle } from 'lucide-react'
+import { login, readMe } from '@/services/auth.service'
 import { setSession, DEMO_SESSION } from '@/lib/mock-auth'
 
 export default function LoginPage() {
@@ -21,9 +21,10 @@ export default function LoginPage() {
 
     try {
       const res = await login(email, password)
+      const me = await readMe(res.access_token)
       setSession({
         user: res.user,
-        organization: DEMO_SESSION.organization,
+        organization: me.organization,
         access_token: res.access_token,
       })
       router.push('/dashboard')
@@ -32,6 +33,11 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  function handleDemo() {
+    setSession(DEMO_SESSION)
+    router.push('/setup/connector')
   }
 
   return (
@@ -131,10 +137,17 @@ export default function LoginPage() {
             cursor: loading ? 'default' : 'pointer',
           }}
         >
-          <LogIn style={{ width: 16, height: 16 }} />
+          {loading ? <LoaderCircle className="spin" /> : <LogIn />}
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
+
+      <div className="auth-divider"><span>or</span></div>
+
+      <button type="button" onClick={handleDemo} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+        <PlayCircle />
+        Open demo workspace
+      </button>
 
       <p style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: 'var(--color-text-muted)' }}>
         New to Sawakli?{' '}

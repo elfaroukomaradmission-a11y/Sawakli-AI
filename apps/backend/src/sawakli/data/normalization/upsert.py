@@ -10,6 +10,8 @@ from sawakli.db.tables import (
     ads_table,
     campaigns_table,
     creatives_table,
+    daily_metrics_table,
+    ga_events_table,
 )
 
 from .payloads import (
@@ -17,6 +19,8 @@ from .payloads import (
     AdUpsertPayload,
     CampaignUpsertPayload,
     CreativeUpsertPayload,
+    DailyMetricUpsertPayload,
+    GAEventUpsertPayload,
 )
 
 
@@ -211,3 +215,51 @@ def upsert_creative(db: Session, payload: CreativeUpsertPayload) -> UUID:
         UUID,
         db.execute(stmt.returning(creatives_table.c.id)).scalar_one(),
     )
+
+
+def upsert_daily_metric(db: Session, payload: DailyMetricUpsertPayload) -> None:
+    _set_org(db, payload.organization_id)
+    stmt = insert(daily_metrics_table).values(
+        organization_id=payload.organization_id,
+        campaign_id=payload.campaign_id,
+        date=payload.date,
+        spend=payload.spend,
+        impressions=payload.impressions,
+        clicks=payload.clicks,
+        conversions=payload.conversions,
+        revenue=payload.revenue,
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[daily_metrics_table.c.campaign_id, daily_metrics_table.c.date],
+        set_={
+            "spend": payload.spend,
+            "impressions": payload.impressions,
+            "clicks": payload.clicks,
+            "conversions": payload.conversions,
+            "revenue": payload.revenue,
+            "organization_id": payload.organization_id,
+        },
+    )
+    db.execute(stmt)
+
+
+def upsert_ga_event(db: Session, payload: GAEventUpsertPayload) -> None:
+    _set_org(db, payload.organization_id)
+    stmt = insert(ga_events_table).values(
+        organization_id=payload.organization_id,
+        campaign_id=payload.campaign_id,
+        date=payload.date,
+        sessions=payload.sessions,
+        bounces=payload.bounces,
+        session_duration=payload.session_duration,
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[ga_events_table.c.campaign_id, ga_events_table.c.date],
+        set_={
+            "sessions": payload.sessions,
+            "bounces": payload.bounces,
+            "session_duration": payload.session_duration,
+            "organization_id": payload.organization_id,
+        },
+    )
+    db.execute(stmt)

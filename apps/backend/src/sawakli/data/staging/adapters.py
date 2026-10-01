@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from .models import StagedCampaignRow
+from .models import StagedCampaignRow, StagedDailyMetricRow, StagedGAEventRow
 
 
 def staged_row_from_csv_dict(
@@ -22,4 +22,17 @@ def staged_row_from_csv_dict(
         start_date_raw=parsed_row["date"],
         end_date_raw=None,
         ad_group=None,
+        daily_metric=StagedDailyMetricRow(
+            date=parsed_row["date"],
+            spend=str(parsed_row["spend"]),
+            impressions=str(parsed_row["impressions"]),
+            clicks=str(parsed_row["clicks"]),
+            conversions=str(parsed_row["conversions"]),
+            revenue=str(parsed_row["revenue"]),
+        ),
+        ga_event=StagedGAEventRow(
+            date=parsed_row["date"],
+            sessions=str(parsed_row.get("sessions", 0)),
+            bounces=str(parsed_row.get("bounces", 0)),
+        ),
     )

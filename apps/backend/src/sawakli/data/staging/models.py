@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -40,3 +42,23 @@ class StagedCampaignRow:
     start_date_raw: str | None
     end_date_raw: str | None
     ad_group: StagedAdGroupRow | None = None
+    daily_metric: StagedDailyMetricRow | None = None
+    ga_event: StagedGAEventRow | None = None
+
+
+@dataclass(frozen=True)
+class StagedDailyMetricRow:
+    date: str
+    spend: str
+    impressions: str
+    clicks: str
+    conversions: str
+    revenue: str
+
+
+@dataclass(frozen=True)
+class StagedGAEventRow:
+    date: str
+    sessions: str | None = None
+    bounces: str | None = None
+    session_duration: str | None = None
