@@ -40,10 +40,11 @@ describe('apiRequest', () => {
   it('uses the API-03 CSV upload path and multipart field name', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data_source_id: 'source-1',
-      provider: 'csv_demo',
       row_count: 1,
       parsed_rows: [],
       parse_warnings: [],
+      sync_status: 'success',
+      last_synced_at: '2026-10-01T12:00:00Z',
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 

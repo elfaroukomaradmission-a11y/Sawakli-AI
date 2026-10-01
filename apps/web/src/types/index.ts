@@ -2,7 +2,6 @@ export type { User, AuthResponse, MeResponse } from './user'
 export type { Organization } from './organization'
 export type {
   ConnectorSetupResponse,
-  ConnectorStatusResponse,
   CsvUploadResponse,
 } from './connector'
 export type {

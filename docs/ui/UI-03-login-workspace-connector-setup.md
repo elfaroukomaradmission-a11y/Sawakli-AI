@@ -2,157 +2,161 @@
 
 ## 1. Overview
 
-UI-03 provides account/workspace creation, login, and a real CSV validation flow. A CSV result is
-called **validated**, never processed or fresh, until Data-owned ING-01 is integrated.
+UI-03 provides account/workspace creation, login, and an authenticated CSV import flow. On a
+successful API response, the UI reports imported rows, sync status, and last-sync time without
+claiming that the current dashboard cards are real data.
 
 ## 2. Scope
 
 ### In Scope
 
-- Create the first workspace through API-01 registration.
-- Login, authenticated current-user lookup, CSV selection, upload, result/warning/error states.
-- Honest unavailable OAuth and dashboard-demo states without secret exposure.
+- First-workspace creation through API-01 registration and authenticated login/current-user lookup.
+- CSV selection, import progress, safe errors, parsed-row count, warnings, sync status, and freshness.
+- Explicit unavailable OAuth state with no secret/token input.
 
 ### Out of Scope
 
-- Organization switching; no API-01 list/switch contract exists.
-- Persistence, canonical normalization, idempotency, data processing, or freshness: ING-01/Data owns these.
-- Provider OAuth flow: CONN-03/Connector owns it.
-- Real dashboard values: API-02/UI-04 own them.
+- Multi-workspace selection; API-01 has no list/switch contract.
+- Implementing raw persistence, staging, normalization, canonical upsert, or source-state writes.
+  The current Backend connector/data path owns them.
+- Provider OAuth authorization/exchange, owned by Connector/CONN-03.
+- Real dashboard KPIs and campaigns, owned by API-02/UI-04.
 
 ## 3. Prerequisites
 
 | Task / contract | Why required |
 |---|---|
-| UI-02 | Supplies session, API client, proxy, and application shell. |
-| API-01 | Supplies registration, login, current-user, and organization scope. |
-| API-03 / PR #18 | Supplies connector setup and CSV parsing/upload routes. |
-| ING-01 | Future source of persisted processing/readiness truth. |
+| UI-02 | Provides session, API client, same-origin proxy, and application shell. |
+| API-01 | Defines registration, login, current-user, and organization scope. |
+| Merged PR #16 connector route | Defines CSV setup/upload and its sync response. |
+| Data/Connector pipeline | Persists raw evidence and canonical rows behind the API route. |
 
 ## 4. Architecture
 
 ```text
 Create workspace or sign in
 ↓
-API-01 returns authenticated organization
+API-01 authenticated organization
 ↓
-API-03 creates csv_demo source
+POST connector setup
 ↓
-API-03 parses uploaded CSV
+POST CSV upload
 ↓
-UI displays validated row count/warnings
+Backend raw → staging → canonical import
 ↓
-ING-01 later makes processing/readiness available
+UI shows success, sync status, and last sync time
 ```
 
 ## 5. Inputs
 
 | Input | Type | Required | Source | Meaning |
 |---|---|---:|---|---|
-| name/email/password/workspace | strings | Yes for registration | user | API-01 registration fields. |
-| CSV file | `File` | Yes for upload | user | `.csv` extension required by UI. |
-| bearer token | string | Yes | API-01 login | scopes connector requests. |
+| name/email/password/workspace | strings | registration | user | API-01 fields. |
+| CSV file | `File` | upload | user | `.csv` extension required by UI. |
+| bearer token | string | protected calls | API-01 | Establishes organization scope. |
 
 ## 6. Outputs
 
 | Output | Type | Consumer | Meaning |
 |---|---|---|---|
-| browser session | user/org/token | UI shell | Authenticated workspace context. |
-| CSV result | API-03 response | setup page | row count and safe parse warnings. |
-| status message | UI state | user | loading, validation error, validated, or unavailable. |
+| session | user/org/token | UI shell | Authenticated workspace context. |
+| import result | API response | setup page | row count, warnings, sync status, last sync. |
+| UI state | local state | user | loading, error, imported, OAuth unavailable. |
 
 ## 7. Rules and Semantics
 
-- Actual API-03 URL: `POST /api/connectors/csv/{data_source_id}/upload`, multipart field `file`.
-- UI creates a `csv_demo` source with `POST /api/connectors/setup` before first upload.
-- Only a successful parser response enables “Continue to demo dashboard.”
-- Parsed rows are intentionally not rendered; they may be large and are not onboarding output.
-- CSV validation does not equal persisted ingestion, canonical readiness, connected OAuth, or dashboard freshness.
+- `POST /api/connectors/setup` creates a CSV source.
+- `POST /api/connectors/csv/{data_source_id}/upload` receives multipart field `file`.
+- “CSV imported” is displayed only after API success with `sync_status: success`.
+- The continuation button remains disabled unless `sync_status` is `success`.
+- Parser warnings are shown; raw parsed rows are not rendered.
+- A successful import means the Backend completed its current raw-to-canonical path. It does not
+  mean that dashboard mock cards have been replaced by API-02 data.
 
 ## 8. Public Interfaces
 
-- `createCsvConnector(accessToken)` — invokes API-03 setup.
-- `uploadCsv(accessToken, dataSourceId, file)` — sends multipart CSV to API-03.
-- `getConnectorStatus(...)` — typed API-03 status facade retained for a future truthful source-status contract; not called for CSV processing state today.
+- `createCsvConnector(accessToken)` — requests source setup.
+- `uploadCsv(accessToken, dataSourceId, file)` — sends multipart import request.
+- `CsvUploadResponse` — `data_source_id`, `row_count`, `parsed_rows`, `parse_warnings`,
+  `sync_status`, and `last_synced_at`.
 
 ## 9. Data Ownership
 
 ### Reads
 
-- API-01 user/organization responses and API-03 safe upload response.
+- API-01 user/organization and safe connector import responses.
 
 ### Writes
 
-- UI writes only its browser session; API-03 writes the connector source.
+- Browser session only. Backend owns connector/data writes.
 
 ### Must Never Read
 
-- OAuth codes, access/refresh tokens, encryption keys, raw database data, or other organizations’ sources.
+- OAuth codes, provider tokens, encryption keys, raw database data, or another organization’s source.
 
 ### Must Never Write
 
-- Canonical metrics, raw payloads, data-source processing status, or provider credentials.
+- Raw payloads, canonical metrics, sync status, provider credentials, or organization identifiers.
 
 ## 10. Security
 
-The frontend never supplies an organization ID. API-01 scopes the bearer token and API-03 checks
-data-source ownership. API error text is shown only from the safe contract. OAuth providers are
-marked unavailable rather than presenting a fake login or asking for secrets.
+The UI never submits organization scope; API-01 derives it from the bearer token and the connector
+route verifies source ownership. Safe error messages are displayed without rendering secrets.
 
 ## 11. Error and Edge-Case Behavior
 
 | Case | Behavior |
 |---|---|
-| no file/non-CSV file | Block upload and explain the requirement. |
-| upload in progress | Disable selection/upload controls and show progress wording. |
-| API parser error | Show safe API message and allow retry. |
-| unavailable API | Show safe retryable unavailable message. |
-| parser warning | Show warning count and individual safe warnings. |
-| successful parser result | Show validated row count, not processing/freshness claim. |
-| no session | Return to login rather than send an unauthenticated request. |
+| Missing/non-CSV file | Block import and explain the requirement. |
+| Uploading | Disable selection/import controls. |
+| Parser/import failure | Show safe API message; source is not reported successful. |
+| Warnings | Show count and warning messages after a successful import. |
+| No session | Return to login before an unauthenticated import request. |
+| OAuth selection | State that provider authorization is unavailable; request no secrets. |
 
 ## 12. Testing
 
 ### Unit Tests
 
-- `connector-setup.test.tsx` verifies source creation, exact upload service call, validation result,
-  no-processing message, and non-CSV rejection.
+- `connector-setup.test.tsx` proves source setup, import request, successful sync display, and
+  non-CSV rejection.
 
 ### Integration Tests
 
-- API-03 route integration is owned by API-03. UI real HTTP verification requires PR #18 deployed.
+- Backend connector/data integration tests are owned by the merged Backend work.
 
 ### E2E Impact
 
-- A full run must register/login, upload a valid fixture, assert row/warnings, and confirm the demo
-  dashboard notice; it cannot assert canonical data until ING-01 exists.
+- A running stack test must register/login, upload a fixture, assert `success` and a timestamp,
+  then confirm the dashboard demo-data notice.
 
 ## 13. Verification
 
-Executed 2026-10-01 from `apps/web`:
+Executed 2026-10-01 from `apps/web` after merging PR #16:
 
-- `pnpm run lint` — PASS; only two pre-existing mock-service warnings.
-- `pnpm run type-check` — PASS.
-- `pnpm test` — PASS; connector setup component assertions included in 6 passing tests.
-- `pnpm run build` — PASS.
+- `node_modules/.bin/eslint.cmd .` — PASS; two pre-existing mock-service warnings only.
+- `node_modules/.bin/tsc.cmd --noEmit` — PASS.
+- `node_modules/.bin/vitest.cmd run` — PASS; 3 files, 6 tests.
+- `node_modules/.bin/next.cmd build` — PASS.
 
 ## 14. Known Limitations
 
-- PR #18 must be merged/deployed before the live upload flow works.
-- PR #18 parses CSV but does not invoke ING-01 persistence/normalization; UI deliberately reports processing/freshness unavailable.
-- PR #18’s status route reports connector-token health and is not a CSV processing/freshness contract.
-- Current dashboard cards remain clearly labeled interface demo data.
+- Current dashboard KPI cards remain demo data until API-02/UI-04 consume canonical metrics.
+- The one-organization API contract cannot support a workspace selector.
+- OAuth provider authorization remains unavailable.
+- ING-01 acceptance still requires independent review of retries/idempotency, partial failures,
+  tenant isolation, reconciliation, and the ARCH-04 ownership boundary.
 
 ## 15. Follow-Up Tasks
 
-- ING-01 — Data/Connector owner — persist uploads and expose readiness/processing state.
-- API-03 — Backend owner — merge/deploy and reconcile its documented endpoint wording with route code.
-- CONN-03 — Connector owner — provide a real OAuth authorization/provider implementation.
-- API-02/UI-04 — Backend/UI owners — serve real organization-scoped dashboard data.
+- ING-01 — Data/Connector — complete its remaining acceptance review/evidence.
+- API-02/UI-04 — Backend/UI — connect canonical metrics to dashboard screens.
+- CONN-03 — Connector — implement provider OAuth.
+- UI-08 — UI — unify broader empty/loading/error/export states.
 
 ## 16. References and Evidence
 
 - API-01: `apps/backend/src/sawakli/api/routes/auth.py`.
-- PR #18 route source: `apps/backend/src/sawakli/api/routes/connectors.py` on `origin/pr-18`.
+- Connector import route: `apps/backend/src/sawakli/api/routes/connectors.py`.
 - UI service: `apps/web/src/services/connectors.service.ts`.
 - UI test: `apps/web/tests/connector-setup.test.tsx`.

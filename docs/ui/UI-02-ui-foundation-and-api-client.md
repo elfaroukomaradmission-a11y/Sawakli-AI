@@ -117,17 +117,17 @@ cookies.
 
 ## 13. Verification
 
-Executed 2026-10-01 from `apps/web`:
+Executed 2026-10-01 from `apps/web` after merging PR #16:
 
-- `pnpm run lint` — PASS; two pre-existing unused `_orgId` warnings in mock campaign/recommendation services.
-- `pnpm run type-check` — PASS.
-- `pnpm test` — PASS; 3 files, 6 tests.
-- `pnpm run build` — PASS; Next.js reports the repository’s existing middleware-to-proxy deprecation warning.
+- `node_modules/.bin/eslint.cmd .` — PASS; two pre-existing unused `_orgId` warnings in mock campaign/recommendation services.
+- `node_modules/.bin/tsc.cmd --noEmit` — PASS.
+- `node_modules/.bin/vitest.cmd run` — PASS; 3 files, 6 tests.
+- `node_modules/.bin/next.cmd build` — PASS; Next.js reports the repository’s existing middleware-to-proxy deprecation warning.
 
 ## 14. Known Limitations
 
 - API-01 returns one organization from `/api/auth/me`; no approved organization-list/switch contract exists.
-- The API proxy is tested in frontend unit/build checks but not yet against a deployed API-03 branch.
+- The API proxy is tested in frontend unit/build checks but not yet against a running local API stack.
 
 ## 15. Follow-Up Tasks
 

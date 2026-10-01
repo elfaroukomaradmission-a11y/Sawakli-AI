@@ -74,7 +74,7 @@ export default function DashboardPage() {
     <>
       <div className="demo-notice" role="status">
         <strong>Demo interface data</strong>
-        <span>CSV validation does not yet populate dashboard metrics. ING-01 and API-02 own that future integration.</span>
+        <span>CSV import can complete, but dashboard cards remain demo data until API-02 and UI-04 use canonical metrics.</span>
       </div>
       {/* KPI Row */}
       <div className="kpi-grid">

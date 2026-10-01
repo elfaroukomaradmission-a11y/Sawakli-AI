@@ -43,3 +43,25 @@ class CreativeUpsertPayload:
     creative_type: str | None
     headline: str | None
     asset_url: str | None
+
+
+@dataclass(frozen=True)
+class DailyMetricUpsertPayload:
+    organization_id: UUID
+    campaign_id: UUID
+    date: date
+    spend: float
+    impressions: int
+    clicks: int
+    conversions: int
+    revenue: float
+
+
+@dataclass(frozen=True)
+class GAEventUpsertPayload:
+    organization_id: UUID
+    campaign_id: UUID
+    date: date
+    sessions: int
+    bounces: int
+    session_duration: float | None = None

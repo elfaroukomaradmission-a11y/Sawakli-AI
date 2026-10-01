@@ -13,6 +13,13 @@ function formatFileSize(size: number): string {
   return size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function formatSyncedAt(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 export default function ConnectorSetupPage() {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -63,32 +70,32 @@ export default function ConnectorSetupPage() {
     <div className="auth-card auth-card-wide">
       <div className="setup-step"><Plug /> Step 2 of 2</div>
       <h1>Upload marketing data</h1>
-      <p className="auth-lede">Upload a CSV to validate its campaign data. Sawakli never asks for provider passwords or tokens here.</p>
+      <p className="auth-lede">Upload a CSV to import campaign data safely. Sawakli never asks for provider passwords or tokens here.</p>
       {error && <div className="error-alert" role="alert"><AlertCircle />{error}</div>}
 
       <section aria-labelledby="csv-upload-title" className="connector-section">
-        <div className="connector-heading"><FileSpreadsheet /><div><h2 id="csv-upload-title">CSV demo import</h2><p>Supported now: secure CSV parsing and validation.</p></div></div>
+        <div className="connector-heading"><FileSpreadsheet /><div><h2 id="csv-upload-title">CSV import</h2><p>Supported now: secure parsing, raw evidence, and canonical data import.</p></div></div>
         <input aria-label="CSV file" ref={inputRef} className="sr-only" id="csv-file" type="file" accept=".csv,text/csv" onChange={(event) => selectFile(event.target.files?.[0])} />
         <button className="upload-zone" type="button" onClick={() => inputRef.current?.click()} disabled={uploading}>
           {file ? <FileUp /> : <UploadCloud />}
-          <span><strong>{file ? file.name : 'Choose a CSV file'}</strong><small>{file ? `${formatFileSize(file.size)} · ready to validate` : 'CSV files only'}</small></span>
+          <span><strong>{file ? file.name : 'Choose a CSV file'}</strong><small>{file ? `${formatFileSize(file.size)} · ready to import` : 'CSV files only'}</small></span>
         </button>
         <button className="btn btn-primary auth-submit" type="button" onClick={handleUpload} disabled={uploading || !file}>
-          <UploadCloud />{uploading ? 'Uploading and validating…' : 'Upload and validate CSV'}
+          <UploadCloud />{uploading ? 'Uploading and importing…' : 'Upload and import CSV'}
         </button>
       </section>
 
       {result && (
         <section className="upload-result" aria-live="polite">
           <CheckCircle2 />
-          <div><h2>CSV validated</h2><p>{result.row_count} rows were accepted{result.parse_warnings.length ? ` with ${result.parse_warnings.length} warning(s)` : '.'}</p></div>
+          <div><h2>CSV imported</h2><p>{result.row_count} rows were imported{result.parse_warnings.length ? ` with ${result.parse_warnings.length} warning(s)` : '.'}</p></div>
           {result.parse_warnings.length > 0 && <ul>{result.parse_warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
-          <p className="status-note">The file has been parsed, but data processing and dashboard freshness are unavailable until ING-01 is integrated.</p>
+          <p className="status-note">Sync status: {result.sync_status}. Last synced: {formatSyncedAt(result.last_synced_at)}. Dashboard cards remain demo data until API-02/UI-04 use canonical metrics.</p>
         </section>
       )}
 
       <section className="connector-unavailable" aria-label="Unavailable connectors"><strong>OAuth connectors</strong><span>Google Ads and GA4 authorization are unavailable until the Connector layer provides a real provider flow.</span></section>
-      <button className="btn btn-primary auth-submit" type="button" onClick={() => router.push('/dashboard')} disabled={!result}><ArrowRight />Continue to demo dashboard</button>
+      <button className="btn btn-primary auth-submit" type="button" onClick={() => router.push('/dashboard')} disabled={result?.sync_status !== 'success'}><ArrowRight />Continue to demo dashboard</button>
       <p className="auth-footer"><Link href="/setup/organization">Back to workspace setup</Link></p>
     </div>
   )

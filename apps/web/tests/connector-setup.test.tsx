@@ -23,23 +23,23 @@ describe('ConnectorSetupPage', () => {
     })
   })
 
-  it('uploads a CSV through API-03 and labels the result as validated', async () => {
+  it('uploads a CSV through API-03 and shows the successful import state', async () => {
     vi.mocked(createCsvConnector).mockResolvedValue({
-      data_source_id: 'source-1', provider: 'csv_demo', status: 'disconnected',
+      data_source_id: 'source-1', provider: 'csv_demo', status: 'disconnected', sync_status: 'pending', last_synced_at: null,
     })
     vi.mocked(uploadCsv).mockResolvedValue({
-      data_source_id: 'source-1', provider: 'csv_demo', row_count: 4, parsed_rows: [], parse_warnings: [],
+      data_source_id: 'source-1', row_count: 4, parsed_rows: [], parse_warnings: [], sync_status: 'success', last_synced_at: '2026-10-01T12:00:00Z',
     })
     render(<ConnectorSetupPage />)
 
     const file = new File(['date,spend\n2026-01-01,10'], 'campaigns.csv', { type: 'text/csv' })
     fireEvent.change(screen.getByLabelText('CSV file'), { target: { files: [file] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Upload and validate CSV' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Upload and import CSV' }))
 
     await waitFor(() => expect(uploadCsv).toHaveBeenCalledWith('test-token', 'source-1', file))
     expect(createCsvConnector).toHaveBeenCalledWith('test-token')
-    expect(screen.getByText('CSV validated')).toBeInTheDocument()
-    expect(screen.getByText(/data processing and dashboard freshness are unavailable/i)).toBeInTheDocument()
+    expect(screen.getByText('CSV imported')).toBeInTheDocument()
+    expect(screen.getByText(/sync status: success/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue to demo dashboard' })).toBeEnabled()
   })
 
