@@ -67,12 +67,11 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+mypy_path = "src"
+explicit_package_bases = true
 
 
 [[tool.mypy.overrides]]
 module = ["jose", "jose.*", "passlib", "passlib.*"]
 ignore_missing_imports = true
-
-mypy_path = "src"
-explicit_package_bases = true
 
