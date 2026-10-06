@@ -127,7 +127,12 @@ campaign_status_enum = sa.Enum(
 campaigns_table = sa.Table(
     "campaigns",
     metadata,
-    sa.Column("id", UUID(as_uuid=True), primary_key=True),
+    sa.Column(
+        "id",
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
+    ),
     sa.Column("organization_id", UUID(as_uuid=True), nullable=False),
     sa.Column("data_source_id", UUID(as_uuid=True), nullable=False),
     sa.Column("external_id", sa.Text),
@@ -192,4 +197,15 @@ daily_metrics_table = sa.Table(
     sa.Column("impressions", sa.Integer, nullable=False),
     sa.Column("conversions", sa.Integer, nullable=False),
     sa.Column("revenue", sa.Numeric, nullable=False),
+)
+
+ga_events_table = sa.Table(
+    "ga_events",
+    metadata,
+    sa.Column("organization_id", UUID(as_uuid=True), nullable=False),
+    sa.Column("campaign_id", UUID(as_uuid=True), primary_key=True),
+    sa.Column("date", sa.Date, primary_key=True),
+    sa.Column("sessions", sa.Integer, nullable=False),
+    sa.Column("bounces", sa.Integer, nullable=False),
+    sa.Column("session_duration", sa.Numeric, nullable=True),
 )

@@ -10,12 +10,16 @@ from .normalize import (
     normalize_ad_group,
     normalize_campaign,
     normalize_creative,
+    normalize_daily_metric,
+    normalize_ga_event,
 )
 from .upsert import (
     upsert_ad,
     upsert_ad_group,
     upsert_campaign,
     upsert_creative,
+    upsert_daily_metric,
+    upsert_ga_event,
 )
 
 
@@ -66,6 +70,18 @@ def normalize_and_upsert(
                     row.organization_id,
                 )
                 creative_id = upsert_creative(db, creative)
+
+    if row.daily_metric is not None:
+        upsert_daily_metric(
+            db,
+            normalize_daily_metric(row.daily_metric, campaign_id, row.organization_id),
+        )
+
+    if row.ga_event is not None:
+        upsert_ga_event(
+            db,
+            normalize_ga_event(row.ga_event, campaign_id, row.organization_id),
+        )
 
     return NormalizationResult(
         campaign_id=campaign_id,

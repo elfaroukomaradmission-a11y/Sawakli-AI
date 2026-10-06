@@ -5,6 +5,8 @@ from sawakli.data.staging.models import (
     StagedAdRow,
     StagedCampaignRow,
     StagedCreativeRow,
+    StagedDailyMetricRow,
+    StagedGAEventRow,
 )
 from sawakli.data.validation.mappings import (
     map_external_id,
@@ -18,6 +20,8 @@ from .payloads import (
     AdUpsertPayload,
     CampaignUpsertPayload,
     CreativeUpsertPayload,
+    DailyMetricUpsertPayload,
+    GAEventUpsertPayload,
 )
 
 
@@ -76,4 +80,48 @@ def normalize_creative(
         creative_type=row.creative_type,
         headline=row.headline,
         asset_url=row.asset_url,
+    )
+
+
+def normalize_daily_metric(
+    row: StagedDailyMetricRow,
+    campaign_id: UUID,
+    organization_id: UUID,
+) -> DailyMetricUpsertPayload:
+    metric_date = parse_iso_date(row.date)
+    if metric_date is None:
+        raise ValueError(f"Invalid metric date: {row.date!r}")
+
+    return DailyMetricUpsertPayload(
+        organization_id=organization_id,
+        campaign_id=campaign_id,
+        date=metric_date,
+        spend=float(row.spend),
+        impressions=int(row.impressions),
+        clicks=int(row.clicks),
+        conversions=int(row.conversions),
+        revenue=float(row.revenue),
+    )
+
+
+def normalize_ga_event(
+    row: StagedGAEventRow,
+    campaign_id: UUID,
+    organization_id: UUID,
+) -> GAEventUpsertPayload:
+    event_date = parse_iso_date(row.date)
+    if event_date is None:
+        raise ValueError(f"Invalid GA event date: {row.date!r}")
+
+    sessions = int(row.sessions) if row.sessions is not None else 0
+    bounces = int(row.bounces) if row.bounces is not None else 0
+    session_duration = float(row.session_duration) if row.session_duration is not None else None
+
+    return GAEventUpsertPayload(
+        organization_id=organization_id,
+        campaign_id=campaign_id,
+        date=event_date,
+        sessions=sessions,
+        bounces=bounces,
+        session_duration=session_duration,
     )

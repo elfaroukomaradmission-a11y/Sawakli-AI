@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
+from uuid import UUID
 
 import numpy as np
-from sklearn.ensemble import IsolationForest
+from numpy.typing import NDArray
+from sklearn.ensemble import IsolationForest  # type: ignore[import-untyped]
 
 from sawakli.ai.features import FeatureRecord
 
@@ -32,10 +35,10 @@ DEFAULT_FEATURES = (
 class AnomalyResult:
     """Final AI-02 anomaly result for one campaign-day."""
 
-    organization_id: object
-    campaign_id: object
+    organization_id: UUID
+    campaign_id: UUID
     campaign_name: str
-    date: object
+    date: date
 
     score: Decimal
     severity: str
@@ -64,18 +67,19 @@ def detect_anomalies(
     if not records:
         return ()
 
-    # AI-02 evaluates each campaign independently.
-    grouped: dict[object, list[FeatureRecord]] = {}
+    # Each tenant/campaign history has its own baselines and forest.
+    grouped: dict[tuple[UUID, UUID], list[FeatureRecord]] = {}
 
     for record in records:
-        grouped.setdefault(record.campaign_id, []).append(record)
+        key = (record.organization_id, record.campaign_id)
+        grouped.setdefault(key, []).append(record)
 
     results: list[AnomalyResult] = []
 
     for campaign_records in grouped.values():
         results.extend(
             _detect_campaign_anomalies(
-                campaign_records,
+                sorted(campaign_records, key=lambda record: record.date),
                 contamination=contamination,
                 random_state=random_state,
             )
@@ -85,7 +89,8 @@ def detect_anomalies(
         sorted(
             results,
             key=lambda result: (
-                getattr(result.campaign_id, "int", 0),
+                result.organization_id.int,
+                result.campaign_id.int,
                 result.date,
             ),
         )
@@ -180,11 +185,12 @@ def _detect_campaign_anomalies(
 
 def _build_feature_matrix(
     records: list[FeatureRecord],
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """Build the Isolation Forest input matrix.
 
     Missing AI-01 features are replaced with that feature's campaign median
-    only for the machine-learning matrix. They are never treated as zero.
+    only for the machine-learning matrix. Entirely unavailable columns are
+    omitted; missing values are never treated as measured zero.
     """
 
     matrix: list[list[float]] = []
@@ -198,12 +204,13 @@ def _build_feature_matrix(
             if (value := getattr(record, feature_name)) is not None
         ]
 
-        medians[feature_name] = float(np.median(values)) if values else 0.0
+        if values:
+            medians[feature_name] = float(np.median(values))
 
     for record in records:
         row: list[float] = []
 
-        for feature_name in DEFAULT_FEATURES:
+        for feature_name in medians:
             value = getattr(record, feature_name)
 
             if value is None:
@@ -336,7 +343,7 @@ def _iqr_score(
     return strongest_score, strongest_direction, reasons
 
 
-def _normalize_scores(scores: np.ndarray) -> np.ndarray:
+def _normalize_scores(scores: NDArray[np.float64]) -> NDArray[np.float64]:
     """Normalize Isolation Forest anomaly scores into [0, 1]."""
 
     minimum = float(scores.min())

@@ -1,4 +1,4 @@
-export type { User, AuthResponse } from './user'
+export type { User, AuthResponse, RegisterResponse, MeResponse } from './user'
 export type { Organization } from './organization'
 export type {
   Campaign,

@@ -4,6 +4,8 @@ from .models import (
     StagedAdRow,
     StagedCampaignRow,
     StagedCreativeRow,
+    StagedDailyMetricRow,
+    StagedGAEventRow,
 )
 
 __all__ = [
@@ -11,5 +13,7 @@ __all__ = [
     "StagedAdRow",
     "StagedCampaignRow",
     "StagedCreativeRow",
+    "StagedDailyMetricRow",
+    "StagedGAEventRow",
     "staged_row_from_csv_dict",
 ]

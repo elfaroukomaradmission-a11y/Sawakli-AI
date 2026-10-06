@@ -1,15 +1,21 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from sawakli.ai.anomaly.detector import detect_anomalies
+import numpy as np
+
+from sawakli.ai.anomaly.detector import _build_feature_matrix, detect_anomalies
 from sawakli.ai.features import FeatureRecord
+
+TEST_ORGANIZATION_ID = UUID(int=1)
 
 
 def make_record(
     *,
-    campaign_id,
+    campaign_id: UUID,
     day: int,
+    organization_id: UUID = TEST_ORGANIZATION_ID,
     spend: str = "100",
     ctr: str = "0.05",
     cpc: str = "2",
@@ -20,7 +26,7 @@ def make_record(
     roas_trend: str | None = None,
 ) -> FeatureRecord:
     return FeatureRecord(
-        organization_id=uuid4(),
+        organization_id=organization_id,
         campaign_id=campaign_id,
         campaign_name="Nour Campaign",
         platform="meta",
@@ -71,7 +77,8 @@ def test_normal_campaign_has_low_anomaly_score():
     results = detect_anomalies(records)
 
     assert len(results) == 10
-    assert all(result.score < Decimal("0.8") for result in results)
+    assert all(result.score == Decimal("0") for result in results)
+    assert all(result.severity == "normal" for result in results)
 
 
 def test_detector_is_deterministic():
@@ -135,6 +142,84 @@ def test_detector_finds_strong_downward_anomaly():
     assert abnormal.severity in {"medium", "high", "critical"}
     assert abnormal.direction == "down"
     assert abnormal.reasons
+
+
+def test_same_campaign_id_in_two_organizations_has_independent_results():
+    campaign_id = uuid4()
+    organization_a = UUID(int=10)
+    organization_b = UUID(int=20)
+    records_a = [
+        make_record(campaign_id=campaign_id, organization_id=organization_a, day=i)
+        for i in range(1, 11)
+    ]
+    records_b = [
+        make_record(
+            campaign_id=campaign_id,
+            organization_id=organization_b,
+            day=i,
+            spend="5000",
+            cpc="100",
+            cpa="1000",
+            roas="0.1",
+        )
+        for i in range(1, 11)
+    ]
+    records_b.append(
+        make_record(
+            campaign_id=campaign_id,
+            organization_id=organization_b,
+            day=11,
+            spend="10000",
+            cpc="200",
+            cpa="2000",
+            roas="0.01",
+        )
+    )
+
+    combined = detect_anomalies([*records_b, *records_a])
+
+    assert combined == (*detect_anomalies(records_a), *detect_anomalies(records_b))
+    assert all(result.score == 0 for result in combined[:10])
+    assert combined[-1].score >= Decimal("0.4")
+
+
+def test_reordering_observations_does_not_change_scores():
+    campaign_id = uuid4()
+    records = [make_record(campaign_id=campaign_id, day=i) for i in range(1, 11)]
+    records.append(make_record(campaign_id=campaign_id, day=11, cpc="8", roas="0.5"))
+
+    expected = detect_anomalies(records)
+    shuffled = [records[i] for i in [10, 4, 1, 8, 0, 6, 9, 3, 7, 2, 5]]
+
+    assert detect_anomalies(reversed(records)) == expected
+    assert detect_anomalies(shuffled) == expected
+
+
+def test_statistical_detectors_need_five_earlier_observations():
+    campaign_id = uuid4()
+    records = [make_record(campaign_id=campaign_id, day=i) for i in range(1, 11)]
+    records[2] = replace(records[2], cpc=Decimal("8"))
+
+    third_day = detect_anomalies(records)[2]
+
+    assert third_day.robust_z_score == 0
+    assert third_day.iqr_score == 0
+
+
+def test_missing_matrix_values_use_observed_median_and_drop_unavailable_columns():
+    campaign_id = uuid4()
+    records = [
+        make_record(campaign_id=campaign_id, day=1, ctr="0.04"),
+        make_record(campaign_id=campaign_id, day=2, ctr="0.06"),
+        replace(make_record(campaign_id=campaign_id, day=3), ctr=None),
+    ]
+
+    matrix = _build_feature_matrix(records)
+
+    # Only spend/CTR/CPC/CPA/ROAS are observed; trends/rolling values are absent.
+    assert matrix.shape == (3, 5)
+    assert matrix[2, 1] == 0.05
+    assert np.isfinite(matrix).all()
 
 
 def test_detector_finds_strong_upward_anomaly():
