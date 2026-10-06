@@ -306,21 +306,36 @@ N/A — no AI-02 REST endpoint or UI integration is part of this task.
 
 ## 13. Verification
 
-Reverification on 6 October 2026, Linux / Python 3.12.14, against local PR #19 merged with
-`main` at `e5806de5e562a1b11076ae73c026214dcc2d83c3`. Commands below run from `apps/backend`
-unless marked repository root; `.venv/bin/` selects the isolated installed tools.
+Independent execution of verification commands on 6 October 2026, Linux / Python 3.12.3,
+against prepared commit `a4a7251c20d9ec424b746416bc41b3cdbf695d3f`, which incorporates
+`main` at `e5806de5e562a1b11076ae73c026214dcc2d83c3`. This agent verification does not
+replace independent human review. A fresh temporary environment was installed with
+`uv venv --python python3.12 /tmp/pr19-venv` and
+`uv pip install --python /tmp/pr19-venv/bin/python -e 'apps/backend[dev]'` from the root.
+Installed numerical versions: NumPy 2.5.3, scikit-learn 1.9.1, SciPy 1.18.1. Commands below
+run from `apps/backend` unless marked repository root; `/tmp/pr19-venv/bin/` selects these tools.
 
 | Command | Result | Evidence |
 |---|---|---|
-| `.venv/bin/ruff check . ../../scripts/ai02_evidence.py` | PASS | No lint errors |
-| `.venv/bin/ruff format --check . ../../scripts/ai02_evidence.py` | PASS | 154 files formatted |
-| `.venv/bin/mypy src` | PASS | 89 source files; strict configuration retained |
-| `.venv/bin/pytest tests/unit/ai/test_detector.py tests/unit/ai/test_detector_evaluation.py -q -s` | PASS | 12 tests; synthetic TP 30/30, recall 100%, clean-day/campaign FPR 0% |
-| `.venv/bin/pytest tests/unit -q` | PASS | 144 tests, 2 dependency deprecation warnings |
-| Full `pytest`, PostgreSQL tests, migrations, Compose stack | NOT RUN — PostgreSQL/Docker unavailable | No local service installed |
-| Nour trace (repository root): `PYTHONPATH=apps/backend/src apps/backend/.venv/bin/python scripts/ai02_evidence.py` | PASS | 360 rows across four campaigns |
+| `/tmp/pr19-venv/bin/ruff check . ../../scripts/ai02_evidence.py` | PASS | No lint errors |
+| `/tmp/pr19-venv/bin/ruff format --check . ../../scripts/ai02_evidence.py` | PASS | 154 files formatted |
+| `/tmp/pr19-venv/bin/mypy src` | PASS | 89 source files; strict configuration retained |
+| `/tmp/pr19-venv/bin/pytest tests/unit/ai/test_detector.py tests/unit/ai/test_detector_evaluation.py -q -s` | PASS | 12 tests; synthetic TP 30/30, recall 100%, clean-day/campaign FPR 0% |
+| `/tmp/pr19-venv/bin/pytest tests/unit -q` | PASS | 144 tests, 2 dependency deprecation warnings |
+| Full `pytest`, PostgreSQL tests, migrations, Compose stack | NOT RUN — PostgreSQL unavailable and Docker daemon inaccessible | `docker info --format '{{.ServerVersion}}'` failed with socket permission denied; `sudo -n docker info --format '{{.ServerVersion}}'` requires a password; no local PostgreSQL installation |
+| Nour trace (repository root): `PYTHONPATH=apps/backend/src /tmp/pr19-venv/bin/python scripts/ai02_evidence.py` | PASS | 360 rows across four campaigns |
 | Nour recall/FPR acceptance | NOT RUN — approved labels unavailable | DATA-02 attachment currently contains only README; referenced generator/validation JSON absent |
-| CI for revised commit | NOT RUN — changes not published yet | Previous PR head's passing CI is not evidence for these fixes |
+| Documentation governance (repository root): `bash .github/scripts/check-documentation-governance.sh origin/main HEAD` | PASS | Current main comparison includes the AI-02 task document |
+| `git diff --check origin/main HEAD` (repository root) | PASS | No whitespace errors |
+| CI for revised commit | NOT RUN — pending publication | The PR description will link the actual final-head run and results; previous-head CI does not verify these fixes |
+
+Source recheck on 6 October 2026: the live AI-02 task still requires labeled clean/anomaly
+cases before merge and the ≥80% recall / ≤5% FPR target. DATA-02 links only
+`README_DATA02.md`, which names `campaign_data.csv`, `generate_demo_dataset.py`, and
+`validation_results.json` but supplies no dated labels or clean masks. PROD-01 §4.2 defines
+FPR on clean campaigns; its campaign stories are not dated ground truth. Repository files
+and fetched branch history contain no referenced generator or validation JSON. No labels,
+clean periods, or thresholds were inferred to close this gap.
 
 Nour diagnostic results at the existing fixture threshold `0.40`:
 
@@ -350,7 +365,10 @@ outputs. The three former fixture-only claims are superseded by this dated evide
   not a persisted per-metric direction. Thresholds/formulas remain those submitted in PR #19.
 - No persistent outputs, production caller, or AI-04 adapter exist. The agreed output mapping and
   chronic-underperformance demo behavior remain integration/contract gaps, not implemented claims.
-- PostgreSQL/Compose acceptance and human review of the revised patch remain outstanding.
+- Local PostgreSQL/Compose checks could not run; final-head CI evidence belongs in the PR
+  description. Independent human review of the revised changes remains a merge requirement.
+- AI-02 remains incomplete and the PR must stay open until source-backed seeded acceptance
+  and required independent human review are satisfied, even if CI passes.
 
 ## 15. Follow-Up Tasks
 
