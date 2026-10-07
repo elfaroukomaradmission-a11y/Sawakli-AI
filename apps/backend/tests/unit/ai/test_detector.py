@@ -4,8 +4,14 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import numpy as np
+import pytest
 
-from sawakli.ai.anomaly.detector import _build_feature_matrix, detect_anomalies
+from sawakli.ai.anomaly.detector import (
+    _build_feature_matrix,
+    _iqr_score,
+    _robust_z_score,
+    detect_anomalies,
+)
 from sawakli.ai.features import FeatureRecord
 
 TEST_ORGANIZATION_ID = UUID(int=1)
@@ -256,3 +262,54 @@ def test_detector_finds_strong_upward_anomaly():
     assert abnormal.severity in {"medium", "high", "critical"}
     assert abnormal.direction == "up"
     assert abnormal.reasons
+
+
+def test_statistical_scores_match_hand_calculated_nonconstant_history():
+    campaign_id = UUID(int=30)
+    history = [make_record(campaign_id=campaign_id, day=day, spend=str(day)) for day in range(1, 6)]
+    current = make_record(campaign_id=campaign_id, day=6, spend="8")
+    future = make_record(campaign_id=campaign_id, day=7, spend="1000")
+    records = [*history, current, future]
+
+    # History [1, 2, 3, 4, 5]: median=3, MAD=1.
+    # Robust contribution: (8 - 3) / (1.4826 * 1 * 6) = 0.562076 rounded.
+    assert _robust_z_score(records, current) == (
+        Decimal("0.562076"),
+        "up",
+        ["spend is unusually up"],
+    )
+    # Q1=2, Q3=4, IQR=2, upper fence=7.
+    # IQR contribution: (8 - 7) / (2 * 3) = 0.166667 rounded.
+    assert _iqr_score(records, current) == (
+        Decimal("0.166667"),
+        "up",
+        ["spend is outside the normal IQR range"],
+    )
+
+
+@pytest.mark.parametrize("available_history", [4, 5])
+def test_statistical_history_gate_counts_available_feature_values(available_history):
+    campaign_id = UUID(int=40)
+    history = [
+        replace(
+            make_record(campaign_id=campaign_id, day=day),
+            ctr=Decimal("0.05") if day <= available_history else None,
+        )
+        for day in range(1, 7)
+    ]
+    current = make_record(campaign_id=campaign_id, day=7, ctr="0.5")
+    future = make_record(campaign_id=campaign_id, day=8, ctr="0.05")
+    records = [*history, current, future]
+
+    z_score, _, z_reasons = _robust_z_score(records, current)
+    iqr_score, _, iqr_reasons = _iqr_score(records, current)
+
+    # Six earlier rows are insufficient when only four CTR values exist.
+    # Current and future values must not satisfy the five-observation gate.
+    if available_history == 4:
+        assert z_score == iqr_score == 0
+        assert z_reasons == iqr_reasons == []
+    else:
+        assert z_score == iqr_score == 1
+        assert z_reasons == ["ctr is unusually up"]
+        assert iqr_reasons == ["ctr is outside the normal IQR range"]

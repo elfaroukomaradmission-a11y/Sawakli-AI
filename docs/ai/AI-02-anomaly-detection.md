@@ -282,7 +282,12 @@ The component is intended to operate on already-authorized, organization-scoped 
 - strong upward anomaly detection.
 
 `tests/unit/ai/test_detector.py` also checks tenant/campaign UUID collisions, shuffled input,
-statistical history gates, and missing matrix columns. The flat-history assertion now proves
+statistical history gates, and missing matrix columns. The 7 October review adds a
+hand-calculable nonconstant baseline: history `[1, 2, 3, 4, 5]` and current value `8`
+produce robust contribution `0.562076` and IQR contribution `0.166667`. Sparse-history
+cases prove that four observed values are insufficient even with six earlier rows, while
+five observed values activate both statistical detectors. Current and future values are
+excluded from these baselines and gates. The flat-history assertion now proves
 `score == 0` and `severity == normal`, not merely that a row is below critical severity.
 
 `tests/unit/ai/test_detector_evaluation.py` passes raw `MetricRecord` fixtures through real AI-01
@@ -327,7 +332,7 @@ run from `apps/backend` unless marked repository root; `/tmp/pr19-venv/bin/` sel
 | Nour recall/FPR acceptance | NOT RUN — approved labels unavailable | DATA-02 attachment currently contains only README; referenced generator/validation JSON absent |
 | Documentation governance (repository root): `bash .github/scripts/check-documentation-governance.sh origin/main HEAD` | PASS | Current main comparison includes the AI-02 task document |
 | `git diff --check origin/main HEAD` (repository root) | PASS | No whitespace errors |
-| CI for revised commit | NOT RUN — pending publication | The PR description will link the actual final-head run and results; previous-head CI does not verify these fixes |
+| CI at local prepublication verification | NOT RUN — awaiting publication at that time | Subsequent run on `57c8009`: [37526973811](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/37526973811) completed PASS; Backend 245 passed / 9 skipped, Frontend 3 passed, documentation and Compose checks passed. These results are scoped to that head; latest-head evidence is in the PR description |
 
 Source recheck on 6 October 2026: the live AI-02 task still requires labeled clean/anomaly
 cases before merge and the ≥80% recall / ≤5% FPR target. DATA-02 links only
@@ -349,6 +354,34 @@ Nour diagnostic results at the existing fixture threshold `0.40`:
 These counts are **not** TP/FP labels or acceptance metrics. In particular, high flag volume on
 Winter Pre-Launch warrants calibration review. Thresholds/formulas have not been tuned to these
 outputs. The three former fixture-only claims are superseded by this dated evidence.
+
+### Review follow-up — 7 October 2026
+
+The follow-up changes only tests and this document; algorithms, thresholds and shared
+contracts remain unchanged. Live AI-02/DATA-02 task pages, their available discussions,
+GitHub reviews/inline comments, repository files and fetched history were rechecked. No
+approved dated labels/clean masks or human approval of the revised head were available.
+The earlier CI logs identify seven OAuth PostgreSQL repository tests and two Data entity
+normalization PostgreSQL tests skipped because `TEST_DATABASE_URL` is unset; these are
+NOT RUN, not passes. Docker socket access remains denied locally.
+
+A new temporary environment was installed with
+`uv venv --python python3.12 /tmp/pr19-review-venv` and
+`uv pip install --python /tmp/pr19-review-venv/bin/python -e 'apps/backend[dev]'`.
+From `apps/backend`:
+
+| Command | Result | Evidence |
+|---|---|---|
+| `/tmp/pr19-review-venv/bin/ruff check . ../../scripts/ai02_evidence.py` | PASS | No lint errors |
+| `/tmp/pr19-review-venv/bin/ruff format --check . ../../scripts/ai02_evidence.py` | PASS | 154 files formatted |
+| `/tmp/pr19-review-venv/bin/mypy src` | PASS | 89 source files, strict mode |
+| `/tmp/pr19-review-venv/bin/pytest tests/unit/ai/test_detector.py tests/unit/ai/test_detector_evaluation.py -q -s` | PASS | 15 tests; synthetic metrics unchanged |
+| `/tmp/pr19-review-venv/bin/pytest tests/unit -q` | PASS | 147 tests, two dependency deprecation warnings |
+| Root: `PYTHONPATH=apps/backend/src /tmp/pr19-review-venv/bin/python scripts/ai02_evidence.py` | PASS | All 360 observations; diagnostic counts unchanged |
+| Seeded recall/FPR acceptance | NOT RUN — approved labels and clean masks unavailable | Existing task entry contract still requires these before merge |
+
+Latest-head remote CI is recorded in the PR description after execution.
+Independent human review remains required; additional agent review does not satisfy it.
 
 ## 14. Known Limitations
 
