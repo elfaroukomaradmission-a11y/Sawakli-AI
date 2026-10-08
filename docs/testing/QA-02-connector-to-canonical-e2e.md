@@ -36,7 +36,7 @@ Status: **Implemented and verified** for the CSV/demo path. The GA4-shaped aggre
 | Task / Contract | Why Required |
 |---|---|
 | CONN-01 | Defines the connector CSV parser and connector error behavior |
-| DATA-03 | Defines raw provider response persistence and source ownership |
+| [RawResponse and Canonical Handoff Contract](../contracts/raw-response-canonical-handoff.md) | Defines raw provider response persistence, deduplication, freshness, and source ownership |
 | DATA-04 | Defines campaign identity and idempotent entity normalization |
 | DATA-05 | Defines canonical daily metric and GA event normalization |
 | INT-01 / canonical data contract | Defines campaign-day grain, non-negative facts, and organization scope |
@@ -62,10 +62,12 @@ daily_metrics + ga_events
 Reconciliation and duplicate checks
 ```
 
-Ownership boundaries:
+Ownership boundaries (the shared decision is canonical in
+[`raw-response-canonical-handoff.md`](../contracts/raw-response-canonical-handoff.md)):
 
 - Connector owns decoding, CSV shape validation, and row-level parse warnings.
 - Data owns staging, normalization, canonical upserts, organization scope, and reconciliation facts.
+- Data owns source freshness; Connector parsing does not advance `last_synced_at`.
 - PostgreSQL owns primary keys, foreign keys, non-negative checks, and campaign-day uniqueness.
 - The test owns setup and teardown only; it does not create a competing schema or persistence layer.
 
