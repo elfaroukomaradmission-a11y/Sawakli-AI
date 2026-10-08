@@ -4,6 +4,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values, load_dotenv
 from sqlalchemy import create_engine, pool
+from sqlalchemy.engine import make_url
 
 from alembic import context
 
@@ -36,13 +37,14 @@ file_values = dotenv_values(_env_file) if _env_file is not None else {}
 # Environment variables override .env values.
 # This allows tests/CI to provide their own DATABASE_URL.
 database_url = os.getenv("DATABASE_URL") or file_values.get("DATABASE_URL")
-print("ALEMBIC DATABASE:", database_url)
 
 if not database_url:
     raise RuntimeError(
         "DATABASE_URL is not set. Copy .env.example to .env at the repo root "
         "and point it at the Postgres instance you want Alembic to use."
     )
+
+print("ALEMBIC DATABASE:", make_url(database_url).render_as_string(hide_password=True))
 
 config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 

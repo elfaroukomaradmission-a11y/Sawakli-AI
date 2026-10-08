@@ -17,6 +17,8 @@ Important technical information must be maintained here, not only in Notion or a
 - [Documentation standard](DOCUMENTATION_STANDARD.md)
 - [Technical task template](templates/TASK_DOCUMENTATION_TEMPLATE.md)
 - [AI-01 feature pipeline](ai/AI-01-feature-pipeline.md)
+- [ADR 0001 — Runtime boundaries and database roles](adr/0001-runtime-boundaries-and-database-roles.md) (Proposed)
+- [ARCH-01 runtime boundaries and database roles](architecture/ARCH-01-runtime-boundaries-and-database-roles.md)
 
 ## Categories
 
