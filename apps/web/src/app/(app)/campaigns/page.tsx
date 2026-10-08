@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCampaigns } from '@/hooks/useCampaigns'
-import { getSession } from '@/lib/mock-auth'
+import { getSession } from '@/lib/session'
 import type { Campaign } from '@/types'
 
 function platformBadge(platform: string) {
