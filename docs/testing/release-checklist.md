@@ -37,20 +37,21 @@ PowerShell set variables with `$env:NAME = "value"` instead of `export`.
 Uses the Compose `postgres-test` service (host port 5434, synthetic password from
 `docker-compose.yml`). Never point these commands at the team's `postgres` service. As a hard guard, `fresh-db`
 refuses (before connecting) any database whose name is not plain `a-z0-9_` ending in `_test`, and
-`roundtrip` any name not ending in `_roundtrip`.
+`roundtrip` any name not ending in `_roundtrip`; both refuse URLs with query parameters and check
+`SELECT current_database()` after connecting, before any migration.
 
 | # | Check | Command | Expected | Owner |
 |---|---|---|---|---|
 | 4.1 | Start the test database | `docker compose up -d postgres-test` | Container `sawakli-test-postgres` healthy | System QA |
 | 4.2 | Fresh, migrated test databases | `export DATABASE_URL=postgresql+psycopg://postgres:change-me@localhost:5434/sawakli_test TEST_DATABASE_URL=postgresql+psycopg://postgres:change-me@localhost:5434/sawakli_integration_test` then `python scripts/integration_harness.py fresh-db DATABASE_URL TEST_DATABASE_URL` | Two `PASS fresh-db` lines | System QA |
-| 4.3 | Backend suite against real PostgreSQL | `cd apps/backend && pytest -rs` | All passed, no `skipped` count in the summary line (QA-00 baseline: 257 passed) | System QA |
+| 4.3 | Backend suite against real PostgreSQL | `(cd apps/backend && pytest -rs)` (returns to the repository root) | All passed, no `skipped` count in the summary line (QA-00 baseline: 265 passed) | System QA |
 | 4.4 | Migration round-trip on a fresh server | `docker run -d --rm --name sawakli-roundtrip -e POSTGRES_PASSWORD=<synthetic> -e POSTGRES_DB=sawakli_roundtrip -p 5435:5432 postgres:18`, then `ROUNDTRIP_DATABASE_URL=postgresql+psycopg://postgres:<synthetic>@localhost:5435/sawakli_roundtrip python scripts/integration_harness.py roundtrip`, then `docker rm -f sawakli-roundtrip` | `PASS roundtrip: 23 tables at head, 0 after downgrade base, 23 after re-upgrade` | System QA |
 
 ## 5. Demo login (API level)
 
 | # | Check | Command | Expected | Owner |
 |---|---|---|---|---|
-| 5.1 | Seed the demo login on the demo database (never on a non-demo deployment: the seed has no environment guard) | From `apps/backend`, with `DATABASE_URL` pointing at the demo database and `SAWAKLI_DEMO_PASSWORD` set: `python -m tests.fixtures.seed` (run twice) | First run `created/updated`, second run `already up to date` | System QA |
+| 5.1 | Seed the demo login on the demo database (never on a non-demo deployment: the seed has no environment guard) | With `DATABASE_URL` pointing at the demo database and `SAWAKLI_DEMO_PASSWORD` set (no leading/trailing spaces): `(cd apps/backend && python -m tests.fixtures.seed)` (run twice) | First run `created/updated`, second run `already up to date` | System QA |
 | 5.2 | Login and organization | `POST /api/auth/login` with `demo@nourfashion.example`, then `GET /api/auth/me` | `200`; organization `Nour Fashion Co.` (`550e8400-e29b-41d4-a716-446655440000`) | System QA |
 | 5.3 | Org-scoped action on seeded data | `POST /api/analysis/refresh` with campaign `770e8400-e29b-41d4-a716-44665544000a` | `202` with a `PENDING` job; a campaign from another organization returns `422` | System QA |
 | 5.4 | Demo password handling | Inspect the terminal and any shared logs | The password appears nowhere; it was typed only into the environment variable | Presenter |
@@ -64,7 +65,7 @@ current board before the demo.
 |---|---|---|
 | Login (API) | Yes | Section 5 |
 | Login (browser) | No | Web login is still a mock (`apps/web/src/lib/mock-auth.ts`); needs ARCH-06 (Abdulrahman Ehab) and UI-04 (Mohamed Hassan) |
-| Data source / demo data | Yes (API) | `POST /api/connectors/setup`, CSV upload; seeded 90-day Nour dataset from migration 0009 |
+| Data source / demo data | Yes (API, by tests) | `POST /api/connectors/setup` and CSV upload are exercised by `apps/backend/tests/test_connectors_api.py` (passing); not run live during QA-00. Seeded 90-day Nour dataset from migration 0009 (verified live) |
 | Dashboard | No | API-02 (Ahmed Ibrahem), UI-04 (Mohamed Hassan) |
 | Analysis refresh queued | Yes (API) | Section 5.3; Worker-to-AI execution needs WORK-04 (El-Farouk Omar) |
 | Anomaly / forecast | No | AI-02 (PR #19, open), AI-06 persistence (Hussein Elhaddad), API-05 (Ahmed Ibrahem) |
