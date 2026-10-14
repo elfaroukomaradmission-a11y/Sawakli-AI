@@ -47,7 +47,7 @@ def test_ingest_csv_upload_persists_raw_response() -> None:
 
     db = MagicMock()
 
-    with patch('sawakli.data.ingestion.service.normalize_and_upsert_batch') as mock_normalize:
+    with patch("sawakli.data.ingestion.service.normalize_and_upsert_batch") as mock_normalize:
         result = ingest_csv_upload(
             db=db,
             raw_response=raw_response,
@@ -101,7 +101,7 @@ def test_ingest_csv_upload_updates_data_sources_freshness() -> None:
 
     db = MagicMock()
 
-    with patch('sawakli.data.ingestion.service.normalize_and_upsert_batch'):
+    with patch("sawakli.data.ingestion.service.normalize_and_upsert_batch"):
         result = ingest_csv_upload(
             db=db,
             raw_response=raw_response,
@@ -160,7 +160,7 @@ def test_ingest_csv_upload_handles_multiple_rows() -> None:
 
     db = MagicMock()
 
-    with patch('sawakli.data.ingestion.service.normalize_and_upsert_batch') as mock_normalize:
+    with patch("sawakli.data.ingestion.service.normalize_and_upsert_batch") as mock_normalize:
         result = ingest_csv_upload(
             db=db,
             raw_response=raw_response,
@@ -207,7 +207,7 @@ def test_ingest_csv_upload_propagates_parse_warnings() -> None:
 
     db = MagicMock()
 
-    with patch('sawakli.data.ingestion.service.normalize_and_upsert_batch'):
+    with patch("sawakli.data.ingestion.service.normalize_and_upsert_batch"):
         result = ingest_csv_upload(
             db=db,
             raw_response=raw_response,
