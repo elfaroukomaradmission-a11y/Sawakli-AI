@@ -5,21 +5,20 @@
  * that every canonical entity's required fields and enum values are
  * present in the corresponding UI type.
  *
- * Usage: node tests/contracts/validate-ui-types.mjs
+ * Usage: node tests/contracts/validate-ui-types.mjs [--contract <path>]
  * Exit 0 = all matched, Exit 1 = mismatches found.
  */
 
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { CONTRACT_PATH } from './contract-lib.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '../..')
 const TYPES_DIR = resolve(ROOT, 'apps/web/src/types')
 
-const canonical = JSON.parse(
-  readFileSync(resolve(__dirname, 'canonical.json'), 'utf-8')
-)
+const canonical = JSON.parse(readFileSync(CONTRACT_PATH, 'utf-8'))
 
 const errors = []
 
