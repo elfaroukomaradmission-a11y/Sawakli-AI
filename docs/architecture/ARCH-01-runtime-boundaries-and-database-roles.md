@@ -2,7 +2,7 @@
 
 | Item | Lifecycle |
 |---|---|
-| Decision record [ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md) | `Proposed`; accepted at the weekly team review |
+| Decision record [ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md) | `Accepted` at the weekly team meeting |
 | Migration log masking in `apps/backend/alembic/env.py` | `Implemented` in this task's pull request |
 | Runtime logins, successor grants, Compose/CI split, request-scoped organization context | Not implemented; follow-ups in §15 |
 
@@ -71,7 +71,7 @@ The card field name "Depends On (2026-09)" is quoted verbatim. The terminology c
 `docs/AGENTS.md:48-49` and the board is recorded as TRK-06 register D-01 and is not resolved here.
 
 ADRs: none existed before this task. This task adds
-[ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md) with status `Proposed`.
+[ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md) with status `Accepted`.
 
 ## 4. Architecture
 
@@ -428,8 +428,9 @@ The leads were formulated before the audit and tested against evidence.
 
 ## 14. Known Limitations
 
-- **Decision status:** ADR 0001 is `Proposed`. Its conditional cells depend on ARCH-02 to ARCH-05,
-  which are open.
+- **Decision status:** ADR 0001 is `Accepted`. Its conditional cells depend on ARCH-02 to ARCH-05;
+  ARCH-04's contract has since been accepted (ADR 0001 §11 note). Reconciling the cells belongs to the
+  end-of-MVP clean-up.
 - **Probe scope:** probes model the `0007` bundles as written. They do not test a proposed grant
   set, because none is implemented.
 - **Upload probe path:** the real upload route stops at the RLS-filtered ownership read. Denials at
@@ -449,8 +450,11 @@ The leads were formulated before the audit and tested against evidence.
 
 ## 15. Follow-Up Tasks
 
-All owners and suggested homes are proposals pending project-lead confirmation. Details, reviewers,
-affected files and the phased sequence are in
+Project-lead decision at acceptance: no new card and no task changes now. The follow-ups below are a
+deferred backlog for a clean-up pass toward the end of the MVP; existing tasks may absorb parts of
+them. Owners and suggested homes remain suggestions.
+
+Details, reviewers, affected files and the phased sequence are in
 [ADR 0001 §9](../adr/0001-runtime-boundaries-and-database-roles.md#9-follow-ups) and its Rollout
 Order.
 
@@ -476,8 +480,8 @@ Order.
   the role-scoped fixture can be prepared under QA-00's integration environment.
 - `FU-10` — Mohamed Hassan — one INT-01 v1.2 (or within DOC-01) after all six ARCH decisions land.
 - `FU-11` — El-Farouk Omar — housekeeping: remove the unused legacy root skeleton.
-- Plan gap — project lead — confirm the new card "Enable least-privilege runtime logins"
-  (ADR 0001 §10).
+- Plan gap — deferred by the project lead to the end-of-MVP clean-up; the suggested home remains one
+  card, "Enable least-privilege runtime logins" (ADR 0001 §10).
 
 **Rollout:**
 
@@ -500,7 +504,7 @@ Order.
 - **Canonical contracts:** INT-01 Canonical MVP Contract Pack v1.1 (§1.1 p.2, §1.4 p.4, §2.2 p.5,
   §2.3 p.6, §2.7 p.7, §3 p.8, §6 p.12).
 - **ADRs:** [ADR 0001 — Runtime Boundaries and Database Roles](../adr/0001-runtime-boundaries-and-database-roles.md)
-  (`Proposed`).
+  (`Accepted`).
 - **Related technical documentation:**
   [TRK-06 integrated baseline register](../testing/TRK-06-integrated-baseline-register.md)
   (D-01, D-14, D-15, D-16, D-24, D-26); `README.md` architecture section; root, `docs/` and

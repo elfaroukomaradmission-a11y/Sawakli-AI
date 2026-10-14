@@ -4,13 +4,13 @@
 
 | Field | Value |
 |---|---|
-| Status | **Proposed** |
-| Date | 4 October 2026 |
+| Status | **Accepted** |
+| Date | 14 October 2026 |
 | Task | ARCH-01 — Reconcile Runtime Boundaries and Database Roles |
 | Proposer | Mohamed Hassan (System QA) |
 | Proposed reviewers | Hussein Elhaddad (project lead); El-Farouk Omar (Compose, CI and Worker) |
 | Acknowledgers | Ahmed Ibrahem (Backend: API rows; `0007` grant rows as DATA-01 and `0007` author); Youssef Halawa (Connector & Data, including the database: Data, Connector and database rows); Abdulrahman Ehab (Frontend: Web row) |
-| Acceptance | At the weekly team review. The status changes to `Accepted` only after that review. |
+| Acceptance | Accepted at the weekly team meeting (project lead: Hussein Elhaddad). |
 | Supersedes | None |
 
 Supporting audit evidence is recorded in the
@@ -180,7 +180,7 @@ from the bundles marked `Required now`, then any conditional addition.
 
 **Lifecycle**
 
-- D1 and D2 are `Proposed`. No runtime login, grant, policy, Compose or CI change is implemented by
+- D1 and D2 are `Accepted`. No runtime login, grant, policy, Compose or CI change is implemented by
   this decision.
 
 ## 7. Boundary Delta vs INT-01 v1.1
@@ -208,9 +208,9 @@ None of these changes is made in the pull request that introduces this ADR.
 | Item | Required change | Proposed owner | Timing |
 |---|---|---|---|
 | INT-01 v1.1 §2.2, §3 (and §1.1 once ARCH-05 decides) | Apply boundary delta B1–B6 in INT-01 v1.2 | Mohamed Hassan (contract owner) | After all six ARCH decisions land, as one v1.2 or within DOC-01 |
-| Successor migration to `0007` | Add Worker `UPDATE` on `jobs.claimed_at`, `retry_count`, `next_retry_at`; add a `worker_role`-scoped policy on `jobs` (R2); add default privileges for future tables; reconcile the `0007` over-grants listed below. Historical migrations stay unchanged. | Youssef Halawa, reviewer Ahmed Ibrahem — pending project-lead confirmation | After acceptance |
-| `docker-compose.yml:42,64`; `ci.yml:61,66,109`; `.env.example:9-13` | Split `DATABASE_URL` into API runtime, Worker runtime and migration connection strings of the form `postgresql+psycopg://<user>:<password>@<host>/<db>`. Run CI migrations as the migration identity, not through the API's runtime URL. | El-Farouk Omar — pending project-lead confirmation | After the successor migration |
-| Test fixtures: `tests/conftest.py:23-35`, `tests/test_org_isolation.py`, `tests/integration/connectors/oauth/test_postgres_repository.py` | Connect as runtime logins where isolation or secret-table access is asserted. Superuser connections cannot prove grants or RLS. | Mohamed Hassan (QA-00, QA-05); Hussein Elhaddad (AI-07) — pending project-lead confirmation | With QA-00, AI-07, QA-05 |
+| Successor migration to `0007` | Add Worker `UPDATE` on `jobs.claimed_at`, `retry_count`, `next_retry_at`; add a `worker_role`-scoped policy on `jobs` (R2); add default privileges for future tables; reconcile the `0007` over-grants listed below. Historical migrations stay unchanged. | Youssef Halawa, reviewer Ahmed Ibrahem — suggestion; deferred to the end-of-MVP clean-up (§9) | End-of-MVP clean-up (deferred, §9) |
+| `docker-compose.yml:42,64`; `ci.yml:61,66,109`; `.env.example:9-13` | Split `DATABASE_URL` into API runtime, Worker runtime and migration connection strings of the form `postgresql+psycopg://<user>:<password>@<host>/<db>`. Run CI migrations as the migration identity, not through the API's runtime URL. | El-Farouk Omar — suggestion; deferred to the end-of-MVP clean-up (§9) | After the successor migration |
+| Test fixtures: `tests/conftest.py:23-35`, `tests/test_org_isolation.py`, `tests/integration/connectors/oauth/test_postgres_repository.py` | Connect as runtime logins where isolation or secret-table access is asserted. Superuser connections cannot prove grants or RLS. | Mohamed Hassan (QA-00, QA-05); Hussein Elhaddad (AI-07) — suggestion; deferred to the end-of-MVP clean-up (§9) | With QA-00, AI-07, QA-05 |
 | `README.md:39` (Database row) | Update after runtime logins are implemented | Implementing pull request | After implementation |
 | `tests/contracts/` | No change required; the contract fixtures contain no role or grant definitions | — | — |
 
@@ -227,8 +227,9 @@ None of these changes is made in the pull request that introduces this ADR.
 
 ## 9. Follow-Ups
 
-Every owner, reviewer and suggested home below is a **proposal pending project-lead
-confirmation**. None is assigned by this ADR.
+Project-lead decision at acceptance: no new card and no task changes now. The follow-ups below are a
+deferred backlog for a clean-up pass toward the end of the MVP; existing tasks may absorb parts of
+them. Owners and suggested homes remain suggestions.
 
 | ID | Follow-up | Proposed owner | Proposed reviewer | Affected file or contract | Blocks | Suggested home (proposal) |
 |---|---|---|---|---|---|---|
@@ -266,10 +267,17 @@ Downstream tasks nevertheless depend on that work:
 - AI-07 Entry Contract: "DATA-01 runtime roles plus AI-06 interface".
 - QA-05 Definition of Done: "Secret tables are inaccessible to unauthorized layers."
 
-DATA-01 (Done) delivered the `NOLOGIN` bundles only. The project lead is asked to assign this work.
+DATA-01 (Done) delivered the `NOLOGIN` bundles only.
 
-**Suggested home (proposal, pending project-lead confirmation):** one new card, "Enable
-least-privilege runtime logins".
+Project-lead decision at acceptance: no new card and no task changes now. The follow-ups below are a
+deferred backlog for a clean-up pass toward the end of the MVP; existing tasks may absorb parts of
+them. Owners and suggested homes remain suggestions.
+
+Until the runtime-login work is done, API and Worker keep the superuser identity, so database grants
+and RLS remain unenforced at runtime; QA-05 and AI-07 can still prove them in tests with the FU-09
+fallback.
+
+**Suggested home:** one new card, "Enable least-privilege runtime logins".
 
 - **Proposed owner:** Youssef Halawa, with the Compose and CI part reviewed by El-Farouk Omar.
 - **Covers:** FU-01, the policy part of FU-02, FU-03, FU-04, FU-06, and the `JWT_SECRET` part of
@@ -288,6 +296,11 @@ least-privilege runtime logins".
 | ARCH-04 — Connector-to-Data Handoff Contracts | Youssef Halawa | Who persists `RawResponse` and writes `data_sources` status (`data_layer_role` placement); where provider credentials and the token encryption key live (`connector_role` placement) |
 | ARCH-05 — Worker Dispatch and Recovery Boundaries | El-Farouk Omar | How the Worker sets organization context per job (R2); whether the scheduler reads `organizations`; which bundles WORK-03 sync needs |
 | ARCH-06 — Frontend API Client and State Conventions | Abdulrahman Ehab | No database input. Acknowledgement of the Web row (no database credentials). |
+
+**Note after acceptance:** the ARCH-04 contract `docs/contracts/raw-response-canonical-handoff.md`
+(status Accepted, 8 October 2026; on `main` since the PR #24 merge `9f9e484`) assigns `data_sources`
+status and freshness to Data and has API and Worker invoke the Data-owned ingest call. The §5 matrix
+is not updated here; reconciling its ARCH-04 cells belongs to the end-of-MVP clean-up.
 
 ## 12. References
 
