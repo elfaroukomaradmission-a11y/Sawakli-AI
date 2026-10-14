@@ -5,7 +5,8 @@ installed backend required) and prints JSON describing, per file:
 
 - ``classes``: Pydantic models, dataclasses and enums, with annotated fields (annotation source text
   and whether a default exists), ``unsupported`` constructs the validators must not silently accept
-  (extra base classes, field aliases, alias generators, computed fields) and, for enums, their
+  (extra base classes, field aliases or exclusions, alias generators, non-ConfigDict model_config,
+  nested ``class Config``, computed fields and serializers) and, for enums, their
   member values. Non-string members are emitted as ``<unsupported: ...>`` markers so they never match.
 - ``aliases``: module-level ``Name = Literal[...]`` aliases and their string values.
 
@@ -48,7 +49,18 @@ def _member_value(node: ast.expr) -> str:
     return f"<unsupported: {ast.unparse(node)}>"
 
 
-_ALIAS_KEYWORDS = {"alias", "serialization_alias", "validation_alias"}
+# Keywords that rename, hide or reshape serialized fields.
+_RESHAPING_KEYWORDS = {"alias", "serialization_alias", "validation_alias", "alias_generator", "exclude"}
+_RESHAPING_DECORATORS = {"computed_field", "field_serializer", "model_serializer"}
+
+
+def _target_name(stmt: ast.stmt) -> str | None:
+    if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
+        target = stmt.targets[0]
+        return target.id if isinstance(target, ast.Name) else None
+    if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+        return stmt.target.id
+    return None
 
 
 def _unsupported_features(node: ast.ClassDef, kind: str) -> list[str]:
@@ -58,14 +70,21 @@ def _unsupported_features(node: ast.ClassDef, kind: str) -> list[str]:
     found += [f"base class {b}" for b in _base_names(node) if b not in allowed_bases]
     for stmt in node.body:
         value = getattr(stmt, "value", None)
+        if _target_name(stmt) == "model_config" and not (
+            isinstance(value, ast.Call) and ast.unparse(value.func).split(".")[-1] == "ConfigDict"
+        ):
+            found.append(f"model_config not built with ConfigDict(...): {ast.unparse(stmt)[:80]}")
         if isinstance(value, ast.Call):
             for keyword in value.keywords:
-                if keyword.arg in _ALIAS_KEYWORDS or keyword.arg == "alias_generator":
+                if keyword.arg in _RESHAPING_KEYWORDS:
                     found.append(f"{keyword.arg}= in {ast.unparse(stmt)[:80]}")
+        if isinstance(stmt, ast.ClassDef) and stmt.name == "Config":
+            found.append("nested class Config")
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for decorator in stmt.decorator_list:
-                if ast.unparse(decorator).split("(")[0].split(".")[-1] == "computed_field":
-                    found.append(f"@computed_field {stmt.name}")
+                name = ast.unparse(decorator).split("(")[0].split(".")[-1]
+                if name in _RESHAPING_DECORATORS:
+                    found.append(f"@{name} {stmt.name}")
     return found
 
 

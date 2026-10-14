@@ -8,17 +8,13 @@
  * known-deviations.json (validator "db") are accepted; stale entries fail.
  *
  * Usage: node tests/contracts/validate-db-schema.mjs [--contract <path>] [--deviations <path>]
+ *        [--migrations-dir <dir>]
  * Exit 0 = all matched, Exit 1 = mismatches found.
  */
 
 import { readFileSync, readdirSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { CONTRACT_PATH, applyDeviations, kindCounts } from './contract-lib.mjs'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const ROOT = resolve(__dirname, '../..')
-const MIGRATIONS_DIR = resolve(ROOT, 'apps/backend/alembic/versions')
+import { resolve } from 'node:path'
+import { CONTRACT_PATH, MIGRATIONS_DIR, applyDeviations, kindCounts } from './contract-lib.mjs'
 
 const canonical = JSON.parse(readFileSync(CONTRACT_PATH, 'utf-8'))
 
@@ -56,7 +52,8 @@ for (const [enumName, canonicalValues] of Object.entries(canonical.enums)) {
     sqlValues.push(m[1])
   }
   const addValuePattern = new RegExp(
-    `ALTER\\s+TYPE\\s+${enumName}\\s+ADD\\s+VALUE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?'([^']+)'`,
+    // Accepts quoted and schema-qualified names: job_status_enum, "job_status_enum", public.job_status_enum.
+    `ALTER\\s+TYPE\\s+(?:"?\\w+"?\\.)?"?${enumName}"?\\s+ADD\\s+VALUE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?'([^']+)'`,
     'gi'
   )
   for (const m of allSQL.matchAll(addValuePattern)) {

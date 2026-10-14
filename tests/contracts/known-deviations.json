@@ -1,5 +1,5 @@
 {
-  "description": "QA-00 reviewed allowlist of known contract deviations on main. Each entry matches exactly one (validator, entity, model, field, mismatch[, value]) found by a validator. 'kind' classifies it: breaking-mismatch (will fail at runtime), contract-stale (code is ahead of canonical.json), loose-typing (weaker type than the contract). Validators fail on any unlisted deviation, any entry that no longer matches, and any entry with a missing/unknown kind or validator or an empty reason/task/owner. Remove an entry in the same PR that fixes it.",
+  "description": "QA-00 reviewed allowlist of known contract deviations on main. Each entry must match exactly one (validator, entity, model, field, mismatch[, value]) found by a validator. 'kind' classifies it: breaking-mismatch (will fail at runtime), contract-stale (code is ahead of canonical.json), loose-typing (weaker type than the contract). Validators fail on any unlisted deviation, any entry that matches no finding or more than one, duplicate entries, entries whose mismatch is a fail-closed finding (only genuine field, type, nullability and enum differences can be accepted), and any entry with a missing/unknown kind or validator or an empty reason/task/owner. Remove an entry in the same PR that fixes it.",
   "deviations": [
     {
       "validator": "ai",
@@ -22,7 +22,7 @@
       "value": "ERROR",
       "reason": "Migration 0011_jobs_retry_timeout_error.py:22 runs ALTER TYPE job_status_enum ADD VALUE 'ERROR'; canonical.json was never updated. Same root cause as the backend JobStatus ERROR entries. Code is ahead of canonical.json; INT-01 decision pending with El-Farouk Omar.",
       "task": "WORK-02 origin; canonical update via INT-01 contract owner",
-      "owner": "El-Farouk Omar (WORK-02); Mohamed Hassan (INT-01 contract)"
+      "owner": "El-Farouk Omar (WORK-02); Mohamed Hassan (INT-01 contract); Abdulrahman Ehab (UI type)"
     },
     {
       "validator": "backend",
@@ -46,7 +46,7 @@
       "value": "ERROR",
       "reason": "Same root cause as enum:job_status_enum ERROR: the API can return status ERROR, which canonical.json does not list. Code is ahead of canonical.json; INT-01 decision pending with El-Farouk Omar.",
       "task": "WORK-02 origin; canonical update via INT-01 contract owner",
-      "owner": "El-Farouk Omar (WORK-02); Mohamed Hassan (INT-01 contract)"
+      "owner": "El-Farouk Omar (WORK-02); Mohamed Hassan (INT-01 contract); Abdulrahman Ehab (UI type)"
     },
     {
       "validator": "backend",
@@ -58,7 +58,7 @@
       "value": "ERROR",
       "reason": "Same root cause as enum:job_status_enum ERROR (the field is typed JobStatus). Code is ahead of canonical.json; INT-01 decision pending with El-Farouk Omar.",
       "task": "WORK-02 origin; canonical update via INT-01 contract owner",
-      "owner": "El-Farouk Omar (WORK-02); Mohamed Hassan (INT-01 contract)"
+      "owner": "El-Farouk Omar (WORK-02); Mohamed Hassan (INT-01 contract); Abdulrahman Ehab (UI type)"
     },
     {
       "validator": "backend",

@@ -7,6 +7,7 @@
  * mismatches must be listed in known-deviations.json. Anything else fails.
  *
  * Usage: node tests/contracts/validate-ai-schemas.mjs [--contract <path>] [--deviations <path>]
+ *        [--source-root <dir>]
  * Exit 0 = all matched, Exit 1 = mismatches found.
  */
 

@@ -10,6 +10,7 @@
  * entity projections; their nested UserPublic / OrganizationPublic are checked directly.
  *
  * Usage: node tests/contracts/validate-backend-models.mjs [--contract <path>] [--deviations <path>]
+ *        [--source-root <dir>]
  * Exit 0 = all matched, Exit 1 = mismatches found.
  */
 

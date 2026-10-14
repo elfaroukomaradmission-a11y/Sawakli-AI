@@ -5,6 +5,8 @@
  * - Known deviations: `--deviations <path>` or SAWAKLI_DEVIATIONS_PATH
  *   (default: known-deviations.json here).
  * - Python source root: `--source-root <dir>` or SAWAKLI_SOURCE_ROOT (default: apps/backend/src/sawakli).
+ * - Migrations directory (DB validator): `--migrations-dir <dir>` or SAWAKLI_MIGRATIONS_DIR.
+ * - A flag given without a value is an error, never a silent fallback to the default.
  * - Python models are read statically by extract_python_models.py (`python -I`, stdlib `ast`);
  *   the interpreter is `python` unless PYTHON is set.
  *
@@ -22,14 +24,22 @@ export const ROOT = resolve(__dirname, '../..')
 
 function option(flag, envName, fallback) {
   const i = process.argv.indexOf(flag)
-  if (i !== -1 && process.argv[i + 1]) return resolve(process.argv[i + 1])
+  if (i !== -1) {
+    const value = process.argv[i + 1]
+    if (!value || value.startsWith('--')) {
+      console.error(`\n=== Contract validation FAILED ===\n  ${flag} needs a path\n`)
+      process.exit(1)
+    }
+    return resolve(value)
+  }
   return process.env[envName] ? resolve(process.env[envName]) : fallback
 }
 
 export const CONTRACT_PATH = option('--contract', 'SAWAKLI_CONTRACT_PATH', resolve(__dirname, 'canonical.json'))
 export const DEVIATIONS_PATH = option('--deviations', 'SAWAKLI_DEVIATIONS_PATH', resolve(__dirname, 'known-deviations.json'))
-// Root the Python file paths are relative to; overridden only by the negative test's tampered copies.
+// The next two are overridden only by the negative test's tampered copies.
 export const BACKEND_SRC = option('--source-root', 'SAWAKLI_SOURCE_ROOT', resolve(ROOT, 'apps/backend/src/sawakli'))
+export const MIGRATIONS_DIR = option('--migrations-dir', 'SAWAKLI_MIGRATIONS_DIR', resolve(ROOT, 'apps/backend/alembic/versions'))
 
 export function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf-8'))
@@ -208,6 +218,13 @@ export function checkEnum(contract, extracted, { validator, enumName, pyName }) 
 // An entry's `mismatch` matches the issue's `kind`; the entry's own `kind` is its reviewed category.
 export const DEVIATION_KINDS = ['breaking-mismatch', 'contract-stale', 'loose-typing']
 const VALIDATORS = ['db', 'backend', 'ai']
+// Only genuine model/contract differences can be accepted. Fail-closed findings (model or enum not
+// found, unsupported model features, stale declarations, duplicate mappings, unknown types, invalid
+// or stale entries) can never be allowlisted.
+export const ALLOWLISTABLE = [
+  'missing_field', 'extra_field', 'type_mismatch', 'weak_enum_type', 'nullable_in_model',
+  'enum_value_missing', 'enum_value_extra', 'missing_column', 'table_not_found', 'enum_not_found',
+]
 const KEY_FIELDS = ['validator', 'entity', 'model', 'field', 'kind', 'value']
 const sameKey = (entry, issue) => KEY_FIELDS.every((k) => ((k === 'kind' ? entry.mismatch : entry[k]) ?? null) === (issue[k] ?? null))
 
@@ -220,6 +237,9 @@ function malformedEntries(all) {
     if (!VALIDATORS.includes(entry.validator)) problems.push(`validator '${entry.validator ?? '(missing)'}' is not one of ${VALIDATORS.join(', ')}`)
     for (const k of ['entity', 'model', 'field', 'mismatch', 'reason', 'task', 'owner']) {
       if (typeof entry[k] !== 'string' || !entry[k].trim()) problems.push(`'${k}' is missing or empty`)
+    }
+    if (typeof entry.mismatch === 'string' && entry.mismatch.trim() && !ALLOWLISTABLE.includes(entry.mismatch)) {
+      problems.push(`mismatch '${entry.mismatch}' cannot be allowlisted (allowed: ${ALLOWLISTABLE.join(', ')})`)
     }
     const twin = all.findIndex((other) => other !== entry && KEY_FIELDS.every((k) => (other[k === 'kind' ? 'mismatch' : k] ?? null) === (entry[k === 'kind' ? 'mismatch' : k] ?? null)))
     if (twin !== -1) problems.push(`duplicates entry #${twin + 1} (same validator/entity/model/field/mismatch/value)`)
@@ -234,15 +254,22 @@ function malformedEntries(all) {
 export function applyDeviations(validator, issues) {
   const all = readJson(DEVIATIONS_PATH).deviations
   const failures = malformedEntries(all)
-  const entries = all.filter((d) => d.validator === validator)
+  // Malformed entries never accept anything.
+  const malformed = new Set(failures.map((f) => f.detail.match(/entry #(\d+)/)[1] - 1))
+  const entries = all.filter((d, i) => d.validator === validator && !malformed.has(i))
   const accepted = []
   for (const issue of issues) {
     const entry = entries.find((d) => sameKey(d, issue))
-    if (entry) accepted.push({ issue, entry })
+    const matches = entry ? issues.filter((i) => sameKey(entry, i)).length : 0
+    if (entry && matches === 1) accepted.push({ issue, entry })
     else failures.push(issue)
   }
   for (const entry of entries) {
-    if (!issues.some((i) => sameKey(entry, i))) {
+    const matches = issues.filter((i) => sameKey(entry, i)).length
+    if (matches > 1) {
+      failures.push({ ...entry, kind: 'ambiguous_deviation', detail: `known deviation matches ${matches} findings; an entry must match exactly one: ${[entry.validator, entry.entity, entry.model, entry.field, entry.mismatch, entry.value].filter((v) => v != null).join(' / ')}` })
+    }
+    if (matches === 0) {
       const key = [entry.validator, entry.entity, entry.model, entry.field, entry.mismatch, entry.value]
       failures.push({ ...entry, kind: 'stale_deviation', detail: `known deviation no longer matches anything: ${key.filter((v) => v != null).join(' / ')}` })
     }
