@@ -1,16 +1,20 @@
 /**
- * QA-01 Contract Validator — AI Layer Schemas (placeholder)
+ * QA-00 Contract Validator — AI Layer Output Schemas
  *
- * TODO: Once the AI team's output schemas (forecast, anomaly, recommendation
- * writers) are finalized, this validator will parse them and check field
- * names / types against the canonical contract.
- *
- * For now, it exits 0 with a notice that the check is pending.
- *
- * Usage: node tests/contracts/validate-ai-schemas.mjs
+ * Usage: node tests/contracts/validate-ai-schemas.mjs [--contract <path>] [--deviations <path>]
+ * Exit 0 = all matched, Exit 1 = mismatches found.
  */
 
-console.log('\n=== QA-01 AI Contract Validation ===')
-console.log('  Status: PENDING — AI layer output schemas not yet finalized.')
-console.log('  This validator will be implemented when AI pipeline output models are merged.\n')
-process.exit(0)
+import { runValidator } from './contract-lib.mjs'
+
+const FILES = ['ai/forecasting/schemas.py', 'ai/recommendations/schemas.py']
+
+const MODELS = [
+  { entity: 'forecasts', model: 'ForecastRecord', file: 'ai/forecasting/schemas.py' },
+  { entity: 'recommendations', model: 'Recommendation', file: 'ai/recommendations/schemas.py' },
+  { entity: 'anomalies', model: 'AnomalySignal', file: 'ai/recommendations/schemas.py' },
+]
+
+const ENUMS = []
+
+runValidator('QA-00 AI Contract Validation', 'ai', FILES, MODELS, ENUMS)
