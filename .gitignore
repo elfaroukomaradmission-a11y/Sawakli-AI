@@ -77,3 +77,6 @@ AGENTS.override.md
 
 # AI-03 local forecast/evaluation evidence exports
 artifacts/ai03/
+
+# QA-00: JUnit report written by the CI Backend job (pytest --junitxml)
+pytest-results.xml

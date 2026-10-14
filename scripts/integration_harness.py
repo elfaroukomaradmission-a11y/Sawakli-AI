@@ -5,13 +5,16 @@ Run with the backend's Python environment (it needs SQLAlchemy, psycopg and Alem
   python scripts/integration_harness.py fresh-db ENV_VAR [ENV_VAR ...]
       For each named env var (e.g. DATABASE_URL TEST_DATABASE_URL): drop and recreate that
       database, then `alembic upgrade head`, so every run starts from the migrated seed state.
-      Refuses, before connecting anywhere, unless every name is plain (a-z, 0-9, _) and ends in "_test".
+      Refuses, before connecting anywhere, unless every name is plain (a-z, 0-9, _) and ends in "_test"
+      and the URL has no query parameters; after creating each database it also checks
+      `SELECT current_database()` before migrating.
 
   python scripts/integration_harness.py roundtrip
       On the database in ROUNDTRIP_DATABASE_URL: upgrade head -> downgrade base -> upgrade head,
       checking the schema is empty before, empty after the downgrade, and at head at the end.
       Refuses unless the name is plain and ends in "_roundtrip" (a dedicated throwaway server:
-      the 0007 downgrade drops cluster-wide roles), and refuses a database that already has tables.
+      the 0007 downgrade drops cluster-wide roles) with no query parameters, unless
+      `SELECT current_database()` confirms that name, and when the database already has tables.
 
 Passwords are never printed (URLs are rendered with the password hidden).
 """
@@ -42,17 +45,42 @@ def _safe(url: URL) -> str:
 
 
 def _require_disposable(env_name: str, url: URL, suffix: str) -> None:
-    """Hard guard, checked before any connection: only plain names ending in `suffix` are touched.
+    """Layer 1, checked before any connection: only plain names ending in `suffix` are touched.
 
     This is what keeps the harness away from development or shared databases such as `sawakli`,
     whatever host or port they are on. The strict character set also keeps the name safe to quote
-    into DROP/CREATE DATABASE.
+    into DROP/CREATE DATABASE. Query parameters are refused because the driver lets them override
+    the database name, host or port (`.../x_test?dbname=sawakli` connects to `sawakli`).
     """
     name = url.database or ""
+    if url.query:
+        sys.exit(
+            f"refusing: {env_name} has query parameters ({', '.join(sorted(url.query))}); "
+            f"they can redirect the connection, so they are not allowed ({_safe(url)})"
+        )
     if not re.fullmatch(rf"[a-z0-9_]+{suffix}", name):
         sys.exit(
             f"refusing: {env_name} database {name!r} is not disposable; it must contain only "
             f"a-z, 0-9 and '_' and end in '{suffix}' ({_safe(url)})"
+        )
+
+
+def _verify_connected(env_name: str, url: URL, suffix: str) -> None:
+    """Layer 2, after connecting and before any migration: ask the server which database it is.
+
+    Refuses unless `SELECT current_database()` is exactly the guarded name, so a connection that
+    lands anywhere else (whatever the reason) never reaches a destructive step.
+    """
+    engine = sa.create_engine(url)
+    try:
+        with engine.connect() as conn:
+            actual = str(conn.execute(sa.text("SELECT current_database()")).scalar_one())
+    finally:
+        engine.dispose()
+    if actual != url.database or not re.fullmatch(rf"[a-z0-9_]+{suffix}", actual):
+        sys.exit(
+            f"refusing: {env_name} connected to {actual!r}, not the disposable database "
+            f"{url.database!r} ({_safe(url)})"
         )
 
 
@@ -95,6 +123,7 @@ def fresh_db(env_names: list[str]) -> None:
     for name, url in urls:
         _require_disposable(name, url, "_test")
     for name, url in urls:
+        # DROP/CREATE name only the guarded identifier, from the server's maintenance database.
         admin = sa.create_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
         try:
             with admin.connect() as conn:
@@ -102,6 +131,7 @@ def fresh_db(env_names: list[str]) -> None:
                 conn.execute(sa.text(f'CREATE DATABASE "{url.database}"'))
         finally:
             admin.dispose()
+        _verify_connected(name, url, "_test")
         _alembic(url, "upgrade", "head")
         print(f"PASS fresh-db {name}: {_safe(url)} recreated and migrated to head")
 
@@ -110,6 +140,7 @@ def roundtrip() -> None:
     url = _url("ROUNDTRIP_DATABASE_URL")
     # The 0007 downgrade drops cluster-wide roles, so the name must mark a dedicated throwaway server.
     _require_disposable("ROUNDTRIP_DATABASE_URL", url, "_roundtrip")
+    _verify_connected("ROUNDTRIP_DATABASE_URL", url, "_roundtrip")
     if (before := _table_count(url)) != 0:
         sys.exit(
             f"refusing: {_safe(url)} already has {before} table(s); round-trip needs a fresh DB"
