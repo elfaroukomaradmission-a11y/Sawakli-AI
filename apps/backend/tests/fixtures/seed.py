@@ -90,6 +90,13 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
+    if password != password.strip():
+        # Login strips the submitted password (LoginRequest), so a padded one could never match.
+        print(
+            f"refusing: {PASSWORD_ENV} has leading or trailing whitespace; remove it",
+            file=sys.stderr,
+        )
+        return 2
 
     from sawakli.db.session import SessionLocal
 

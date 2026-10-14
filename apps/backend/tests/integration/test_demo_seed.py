@@ -77,6 +77,17 @@ def test_seed_refuses_without_password(
     assert demo_seed.PASSWORD_ENV in capsys.readouterr().err
 
 
+def test_seed_refuses_password_with_surrounding_whitespace(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # LoginRequest strips the password, so a padded seed password could never log in.
+    monkeypatch.setenv(demo_seed.PASSWORD_ENV, f" {TEST_PASSWORD} ")
+    assert demo_seed.main() == 2
+    err = capsys.readouterr().err
+    assert "whitespace" in err
+    assert TEST_PASSWORD not in err
+
+
 def test_seed_refuses_when_demo_org_missing(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
