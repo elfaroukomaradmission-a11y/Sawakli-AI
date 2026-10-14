@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -20,7 +19,12 @@ def test_ingest_csv_upload_persists_raw_response() -> None:
     upload_id = uuid4()
     synced_at = datetime(2026, 10, 14, 12, 0, 0)
     endpoint = "csv://upload/test.csv"
-    raw_payload = {"csv": "date,campaign_name,platform,spend,impressions,clicks,conversions,revenue\n2026-01-01,Test,meta,100,1000,100,10,200"}
+    raw_payload = {
+        "csv": (
+            "date,campaign_name,platform,spend,impressions,clicks,conversions,revenue\n"
+            "2026-01-01,Test,meta,100,1000,100,10,200"
+        )
+    }
 
     raw_response = RawResponse(
         parsed_rows=[
@@ -59,7 +63,8 @@ def test_ingest_csv_upload_persists_raw_response() -> None:
     assert result.row_count == 1
     assert result.parse_warnings == []
 
-    # Verify db.execute was called (for raw_api_responses insert, normalization, and data_sources update)
+    # Verify db.execute was called for raw_api_responses insert, normalization, and
+    # data_sources update.
     assert db.execute.call_count >= 2
 
     # Verify normalization was called with staged rows
