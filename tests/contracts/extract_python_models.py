@@ -50,7 +50,13 @@ def _member_value(node: ast.expr) -> str:
 
 
 # Keywords that rename, hide or reshape serialized fields.
-_RESHAPING_KEYWORDS = {"alias", "serialization_alias", "validation_alias", "alias_generator", "exclude"}
+_RESHAPING_KEYWORDS = {
+    "alias",
+    "serialization_alias",
+    "validation_alias",
+    "alias_generator",
+    "exclude",
+}
 _RESHAPING_DECORATORS = {"computed_field", "field_serializer", "model_serializer"}
 
 
