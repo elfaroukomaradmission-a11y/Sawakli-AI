@@ -20,6 +20,23 @@ jobs:
       - name: Check documentation governance
         run: bash .github/scripts/check-documentation-governance.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
+  contracts:
+    name: Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Contract validators and negative tests
+        run: node scripts/run-contracts.mjs
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
@@ -40,6 +57,21 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Separate server for the migration round-trip: the 0007 downgrade drops cluster-wide
+      # roles, which fails while another database on the same server still holds grants.
+      postgres-roundtrip:
+        image: postgres:18
+        env:
+          POSTGRES_DB: sawakli_roundtrip
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sawakli_roundtrip"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,16 +87,23 @@ jobs:
         run: ruff format --check .
       - name: Type check
         run: mypy src
+      - name: Prepare integration test database
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli_integration_test
+        run: python ../../scripts/integration_harness.py fresh-db TEST_DATABASE_URL
       - name: Tests
         env:
           JWT_SECRET: change-this-to-a-real-secret
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli
-        run: pytest
-      - name: Verify migrations
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli_integration_test
+        # A skipped test is a test that did not run: fail the job if any test is skipped.
+        run: |
+          pytest -rs --junitxml=pytest-results.xml
+          python -c "import sys, xml.etree.ElementTree as ET; s = sum(int(t.get('skipped', 0)) for t in ET.parse('pytest-results.xml').getroot().iter('testsuite')); print(f'skipped tests: {s}'); sys.exit(1 if s else 0)"
+      - name: Migration round-trip (upgrade head, downgrade base, upgrade head)
         env:
-          JWT_SECRET: change-this-to-a-real-secret
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sawakli
-        run: alembic upgrade head
+          ROUNDTRIP_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5433/sawakli_roundtrip
+        run: python ../../scripts/integration_harness.py roundtrip
 
   frontend:
     name: Frontend
