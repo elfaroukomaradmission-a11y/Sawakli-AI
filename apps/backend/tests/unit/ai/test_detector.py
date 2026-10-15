@@ -8,6 +8,7 @@ import pytest
 
 from sawakli.ai.anomaly.detector import (
     _build_feature_matrix,
+    _corroborated_score,
     _iqr_score,
     _robust_z_score,
     detect_anomalies,
@@ -272,19 +273,69 @@ def test_statistical_scores_match_hand_calculated_nonconstant_history():
     records = [*history, current, future]
 
     # History [1, 2, 3, 4, 5]: median=3, MAD=1.
-    # Robust contribution: (8 - 3) / (1.4826 * 1 * 6) = 0.562076 rounded.
+    # Per-feature Z=(8-3)/(1.4826*1*6)=0.562076; second feature contributes zero.
     assert _robust_z_score(records, current) == (
-        Decimal("0.562076"),
+        Decimal("0.281038"),
         "up",
         ["spend is unusually up"],
     )
     # Q1=2, Q3=4, IQR=2, upper fence=7.
-    # IQR contribution: (8 - 7) / (2 * 3) = 0.166667 rounded.
+    # Per-feature IQR=(8-7)/(2*3)=0.166667; average with zero -> 0.083334 (half-even).
     assert _iqr_score(records, current) == (
-        Decimal("0.166667"),
+        Decimal("0.083334"),
         "up",
         ["spend is outside the normal IQR range"],
     )
+
+
+@pytest.mark.parametrize(
+    ("spend", "expected_z", "expected_iqr"),
+    [("101", "0.016666", "0"), ("110", "0.166666", "0.083334"), ("130", "0.5", "0.5")],
+)
+def test_constant_history_has_a_finite_dispersion_floor(spend, expected_z, expected_iqr):
+    campaign_id = UUID(int=50)
+    history = [make_record(campaign_id=campaign_id, day=day) for day in range(1, 11)]
+    current = make_record(campaign_id=campaign_id, day=11, spend=spend)
+    records = [*history, current]
+    # median=100, MAD=0: Z scale=5, IQR=5, upper fence=107.5; average with zero.
+    assert _robust_z_score(records, current)[0] == Decimal(expected_z)
+    assert _iqr_score(records, current)[0] == Decimal(expected_iqr)
+
+
+def test_zero_centered_trends_use_percentage_points_not_relative_zero():
+    campaign_id = UUID(int=51)
+    history = [
+        make_record(campaign_id=campaign_id, day=day, spend_trend="0") for day in range(1, 11)
+    ]
+    current = make_record(campaign_id=campaign_id, day=11, spend_trend="0.10")
+    records = [*history, current]
+    # scale=0.05; halve each per-feature contribution because other evidence is zero.
+    assert _robust_z_score(records, current)[0] == Decimal("0.166666")
+    assert _iqr_score(records, current)[0] == Decimal("0.083334")
+
+
+def test_statistical_aggregation_requires_corroboration_without_claiming_independence():
+    assert _corroborated_score([]) == 0
+    assert _corroborated_score([Decimal("1")]) == Decimal("0.5")
+    assert _corroborated_score([Decimal("1"), Decimal("0.6"), Decimal("0.2")]) == Decimal("0.8")
+    assert _corroborated_score([Decimal("0.6"), Decimal("1")]) == Decimal("0.8")
+
+
+def test_nearly_constant_rolling_features_do_not_saturate_the_statistical_scores():
+    campaign_id = UUID(int=52)
+    history = [
+        replace(
+            make_record(campaign_id=campaign_id, day=day),
+            rolling_ctr_7d=Decimal("0.0500") + Decimal(day % 2) / Decimal("1000000"),
+        )
+        for day in range(1, 11)
+    ]
+    current = replace(
+        make_record(campaign_id=campaign_id, day=11), rolling_ctr_7d=Decimal("0.0501")
+    )
+    records = [*history, current]
+    assert _robust_z_score(records, current)[0] < Decimal("0.01")
+    assert _iqr_score(records, current)[0] == 0
 
 
 @pytest.mark.parametrize("available_history", [4, 5])
@@ -310,6 +361,7 @@ def test_statistical_history_gate_counts_available_feature_values(available_hist
         assert z_score == iqr_score == 0
         assert z_reasons == iqr_reasons == []
     else:
-        assert z_score == iqr_score == 1
+        # One available abnormal feature contributes 1, averaged with zero evidence.
+        assert z_score == iqr_score == Decimal("0.5")
         assert z_reasons == ["ctr is unusually up"]
         assert iqr_reasons == ["ctr is outside the normal IQR range"]

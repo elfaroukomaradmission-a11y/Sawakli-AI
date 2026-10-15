@@ -30,6 +30,13 @@ DEFAULT_FEATURES = (
     "rolling_cpc_14d",
 )
 
+# Avoid interpreting quantization and near-constant rolling values as unlimited
+# statistical evidence. These are minimum dispersion scales, not alert cutoffs.
+MIN_RELATIVE_DISPERSION = 0.05
+MIN_TREND_DISPERSION = 0.05
+MIN_NUMERIC_DISPERSION = 1e-12
+STATISTICAL_EVIDENCE_FEATURES = 2
+
 
 @dataclass(frozen=True, slots=True)
 class AnomalyResult:
@@ -232,6 +239,7 @@ def _robust_z_score(
     strongest_score = Decimal("0")
     strongest_direction = "normal"
     reasons: list[str] = []
+    contributions: list[Decimal] = []
 
     history = [item for item in records if item.date < record.date]
 
@@ -258,16 +266,10 @@ def _robust_z_score(
         mad = float(np.median(absolute_deviations))
         current_value = float(current)
 
-        # Constant historical value.
-        if mad == 0:
-            if current_value == median_value:
-                continue
-
-            score = Decimal("1")
-        else:
-            robust_z = abs((current_value - median_value) / (1.4826 * mad))
-
-            score = Decimal(str(round(min(robust_z / 6.0, 1.0), 6)))
+        scale = max(1.4826 * mad, _minimum_dispersion(feature_name, median_value))
+        robust_z = abs(current_value - median_value) / scale
+        score = Decimal(str(round(min(robust_z / 6.0, 1.0), 6)))
+        contributions.append(score)
 
         if score > strongest_score:
             strongest_score = score
@@ -276,7 +278,7 @@ def _robust_z_score(
 
             reasons = [f"{feature_name} is unusually {strongest_direction}"]
 
-    return strongest_score, strongest_direction, reasons
+    return _corroborated_score(contributions), strongest_direction, reasons
 
 
 def _iqr_score(
@@ -288,6 +290,7 @@ def _iqr_score(
     strongest_score = Decimal("0")
     strongest_direction = "normal"
     reasons: list[str] = []
+    contributions: list[Decimal] = []
 
     history = [item for item in records if item.date < record.date]
 
@@ -308,39 +311,47 @@ def _iqr_score(
             continue
 
         q1, q3 = np.percentile(values, [25, 75])
-        iqr = q3 - q1
+        iqr = max(float(q3 - q1), _minimum_dispersion(feature_name, float(np.median(values))))
         current_value = float(current)
 
-        # Constant historical value.
-        if iqr == 0:
-            if current_value == q1:
-                continue
-
-            score = Decimal("1")
-
-            direction = "up" if current_value > q1 else "down"
-
+        lower = q1 - 1.5 * iqr
+        upper = q3 + 1.5 * iqr
+        if current_value < lower:
+            distance = (lower - current_value) / iqr
+            direction = "down"
+        elif current_value > upper:
+            distance = (current_value - upper) / iqr
+            direction = "up"
         else:
-            lower = q1 - 1.5 * iqr
-            upper = q3 + 1.5 * iqr
-
-            if current_value < lower:
-                distance = (lower - current_value) / iqr
-                direction = "down"
-            elif current_value > upper:
-                distance = (current_value - upper) / iqr
-                direction = "up"
-            else:
-                continue
-
-            score = Decimal(str(round(min(distance / 3.0, 1.0), 6)))
+            continue
+        score = Decimal(str(round(min(distance / 3.0, 1.0), 6)))
+        contributions.append(score)
 
         if score > strongest_score:
             strongest_score = score
             strongest_direction = direction
             reasons = [f"{feature_name} is outside the normal IQR range"]
 
-    return strongest_score, strongest_direction, reasons
+    return _corroborated_score(contributions), strongest_direction, reasons
+
+
+def _corroborated_score(contributions: list[Decimal]) -> Decimal:
+    """Average the two strongest feature contributions, padding absent evidence with zero.
+
+    One unstable feature cannot independently saturate both statistical branches.
+    Features are corroborating measurements, not statistically independent votes.
+    """
+    strongest = sorted(contributions, reverse=True)[:STATISTICAL_EVIDENCE_FEATURES]
+    return (sum(strongest, Decimal(0)) / STATISTICAL_EVIDENCE_FEATURES).quantize(
+        Decimal("0.000001")
+    )
+
+
+def _minimum_dispersion(feature_name: str, median_value: float) -> float:
+    """Five percent of a level, or five percentage points for relative trends."""
+    if feature_name.endswith("_trend"):
+        return MIN_TREND_DISPERSION
+    return max(abs(median_value) * MIN_RELATIVE_DISPERSION, MIN_NUMERIC_DISPERSION)
 
 
 def _normalize_scores(scores: NDArray[np.float64]) -> NDArray[np.float64]:

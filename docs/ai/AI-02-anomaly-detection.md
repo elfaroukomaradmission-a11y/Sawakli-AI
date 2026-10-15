@@ -2,431 +2,354 @@
 
 ## 1. Overview
 
-AI-02 implements the Sawakli AI anomaly-detection component. It receives the `FeatureRecord` objects produced by AI-01 and evaluates campaign-day behavior for meaningful abnormalities.
+AI-02 consumes AI-01 `FeatureRecord` histories and returns one immutable
+`AnomalyResult` per organization/campaign/day. It combines robust Z-score, IQR
+and Isolation Forest evidence into a score, severity, performance direction and
+plain-text statistical reasons.
 
-The component exists to identify abnormal campaign behavior while keeping the result interpretable. For each campaign-day it produces an anomaly score, severity, direction, component scores, and human-readable reasons.
+Original implementation: **Ahmed Ibrahem** (`ahmed-ibrahem1793`). Hussein Elhaddad
+owns the subsequent tenant/evaluation fixes and handoff. Contributor history is
+preserved in [PR #19](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/19).
 
-AI-02 sits directly downstream of AI-01 in the AI layer. AI-01 defines the loading and feature-engineering boundary; AI-02 consumes that feature output for anomaly detection.
+**15 October 2026 revision:** the missing evaluation path is supplied by a new,
+versioned 90-day reference benchmark. It exposed excessive clean-campaign flags;
+minimum statistical dispersion and two-feature corroboration correct that failure.
+This supersedes the earlier max-feature/zero-dispersion scoring description.
+The historical 360-row Nour seed remains unchanged and unlabeled; its recall/FPR
+is **not** claimed. See the [benchmark definition and executed evidence](../testing/AI-02-seeded-benchmark.md).
 
 ## 2. Scope
 
-### In Scope
+### In scope
 
-- Campaign-level anomaly detection from AI-01 `FeatureRecord` inputs.
-- Robust z-score detection using median and MAD.
-- IQR-based outlier detection.
-- Isolation Forest detection.
-- Weighted ensemble anomaly score in the range `[0, 1]`.
-- Human-readable severity: `normal`, `low`, `medium`, `high`, `critical`.
-- Overall direction: `normal`, `up`, `down`, or `mixed`.
-- Explainable reason strings for interpretable detectors.
-- Deterministic behavior through a fixed Isolation Forest `random_state`.
-- Per-organization/campaign evaluation without baseline or model leakage across tenants.
-- Unit tests covering core anomaly behaviors.
-- Controlled synthetic evaluation and a separate trace of the complete committed Nour seed.
+- Pure in-memory, organization/campaign-isolated analysis of AI-01 features.
+- Robust Z, IQR and 200-tree Isolation Forest ensemble; deterministic ordering.
+- Explicit missing-value and insufficient-history behavior.
+- Mathematical, tenant, ordering, missing-data and benchmark regression tests.
+- Reproducible source facts, independently defined intervention labels, complete
+  clean masks and integer-denominator evaluation at a declared operating point.
 
-### Out of Scope
+### Out of scope
 
-- Data loading and feature engineering; owned by AI-01.
-- Forecasting; owned by AI-03.
-- Recommendation generation; owned by AI-04.
-- Simulation; owned by AI-05.
-- Pipeline orchestration and persistent AI-output storage; owned by later AI-layer work.
-- REST/API exposure; owned by API/backend tasks.
+Loading/feature engineering (AI-01), forecasting (AI-03), recommendations (AI-04),
+simulation (AI-05), orchestration/persistence (AI-06), REST/UI integration and
+broader runtime-role acceptance (AI-07). No schema, dependency, migration,
+credential, provider action or canonical source-table change is introduced.
 
 ## 3. Prerequisites
 
-| Task / Contract | Why Required |
+| Source | Use |
 |---|---|
-| AI-01 — Implement AI Data Access and Feature Engineering | Provides the canonical `FeatureRecord` input consumed by AI-02. |
-| DATA-02 — 90-Day Seeded Demo Dataset | Provides the deterministic demo campaign data used for seeded evaluation. |
-| INT-01 — Canonical MVP Contract Pack | Governs the canonical data model and layer boundaries used by the upstream data/AI pipeline. |
+| [AI-01](AI-01-feature-pipeline.md) | Validated `FeatureRecord` input; raw facts and derived ratios |
+| [Reference benchmark v1](../testing/AI-02-seeded-benchmark.md) | New deterministic facts, dated interventions and explicit clean denominators |
+| DATA-02 / PROD-01 | Historical Nour story and quality targets; original dated ground truth remains unavailable |
+| [ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md) | Accepted in-process boundaries and deferred runtime-role rollout |
+| [Canonical schema](../../tests/contracts/canonical.json) | Downstream persistence boundary; unchanged |
 
-AI-01 explicitly defines `FeatureRecord[]` as the output flowing into AI-02 and leaves anomaly scoring out of scope for AI-01.
+The project lead requested fixing the evaluation issue and then merging on
+15 October, with human approval treated as satisfied. This is an explicit
+execution assumption, not a fabricated GitHub approval or DATA-02-owner review.
+The new benchmark is a reference for this standalone analytical task; it does
+not recover the missing historical generator or establish full demo acceptance.
 
 ## 4. Architecture
 
-AI-02 consumes already-engineered campaign-day features and evaluates each organization/campaign history independently.
+`detect_anomalies` materializes the iterable, groups by
+`(organization_id, campaign_id)`, sorts each group by date and evaluates it
+independently. It returns results sorted by organization UUID, campaign UUID and
+date. Reordered equivalent inputs produce the same outputs.
 
-```text
-AI-01 FeatureRecord[]
-        ↓
-Group by organization + campaign; sort each history by date
-        ↓
-Build feature matrix
-        ↓
-Robust Z-score ─────┐
-IQR detector ───────┼──→ Ensemble score
-Isolation Forest ───┘
-        ↓
-Severity + Direction + Reasons
-        ↓
-AnomalyResult[]
-```
-
-Ownership boundary:
-
-- AI-01 owns loading, validation, and feature engineering.
-- AI-02 owns anomaly detection and anomaly-result generation.
-- AI-02 does not directly read provider payloads or authentication credentials.
-- No persistent database writes are introduced by AI-02 itself.
+Statistical detectors compare each row with strictly earlier dates only.
+Isolation Forest fits the entire supplied campaign group retrospectively.
+Neither the function nor benchmark reads/writes PostgreSQL or provider APIs.
 
 ## 5. Inputs
 
-| Field / Input | Type | Required | Source | Description |
-|---|---|---|---|---|
-| `records` | `Iterable[FeatureRecord]` | Yes | AI-01 | Campaign-day feature records to evaluate. |
-| `contamination` | `float` | No | Caller/default | Isolation Forest contamination parameter; default `0.05`. |
-| `random_state` | `int` | No | Caller/default | Isolation Forest seed; default `42` for deterministic behavior. |
-| AI-01 feature fields | `Decimal` / nullable | Per AI-01 contract | AI-01 | Includes spend, CTR, CPC, CPA, ROAS, trends, and rolling metrics. |
+```python
+detect_anomalies(
+    records: Iterable[FeatureRecord],
+    *,
+    contamination: float = 0.05,
+    random_state: int = 42,
+) -> tuple[AnomalyResult, ...]
+```
 
-The detector groups records by `(organization_id, campaign_id)`. Each group is sorted by date before fitting the forest. Mixed-organization batches are isolated; callers remain responsible for authorization. AI-01 nullable features remain nullable; partially missing columns use their observed group median only for Isolation Forest. Entirely unavailable columns are omitted, never replaced with measured zero.
+Features: `spend`, `ctr`, `cpc`, `cpa`, `roas`, `spend_trend`,
+`conversion_trend`, `roas_trend`, `rolling_ctr_7d`, `rolling_ctr_14d`,
+`rolling_cpc_7d`, `rolling_cpc_14d`. UUIDs/dates are identities, not model columns.
 
-The upstream AI-01 contract retains `organization_id` and `campaign_id` on every record.
+The caller authorizes access. Computational grouping prevents baseline/model
+leakage but does not replace authentication. AI-01 owns raw validation, duplicate
+rejection, stable campaign metadata, Decimal facts and ratio calculation.
 
 ## 6. Outputs
 
-| Field / Output | Type | Nullable | Consumer | Description |
-|---|---|---|---|---|
-| `organization_id` | UUID | No | Downstream AI/API | Source organization identifier. |
-| `campaign_id` | UUID | No | Downstream AI/API | Campaign identifier. |
-| `campaign_name` | `str` | No | Downstream AI/API | Campaign name. |
-| `date` | date | No | Downstream AI/API | Campaign-day date. |
-| `score` | `Decimal` | No | Downstream AI/API | Final ensemble anomaly score in `[0,1]`. |
-| `severity` | `str` | No | Downstream AI/API | Human-readable severity. |
-| `direction` | `str` | No | Downstream AI/API | Overall movement direction. |
-| `robust_z_score` | `Decimal` | No | Diagnostics | Strongest robust z-score contribution. |
-| `iqr_score` | `Decimal` | No | Diagnostics | Strongest IQR contribution. |
-| `isolation_score` | `Decimal` | No | Diagnostics | Normalized Isolation Forest contribution. |
-| `reasons` | `tuple[str, ...]` | No | Explainability/UI | Human-readable reasons from interpretable detectors. |
+`AnomalyResult` is a frozen dataclass containing organization/campaign UUIDs,
+campaign name, date, `score`, `severity`, `direction`, `robust_z_score`,
+`iqr_score`, `isolation_score`, and a tuple of `reasons`.
 
-The public result object is `AnomalyResult`, a frozen dataclass. This is a campaign-day diagnostic,
-**not** a canonical persisted `anomalies` row or AI-04 `AnomalySignal`. It has no `metric_name`,
-its performance direction (`up`/`down`) differs from metric direction (`above`/`below`), and it
-includes `normal`/`critical` severities absent from the persisted enum. No mapping is invented here.
-See [`canonical.json`](../../tests/contracts/canonical.json) and
-[AI-04's input boundary](AI-04-recommendation-engine.md). ARCH-03/AI-06 must agree the adapter
-before persistence or recommendation enrichment; there is no production caller in this PR.
-INT-01 v1.1 also still describes `feature_daily` as the AI input, while the merged AI-01 task
-engineers in-memory features from `daily_metrics`. This inherited source conflict is for ARCH-03;
-this PR changes neither the shared schema nor AI-01's source path.
+Each statistical component is now the average of its two strongest feature
+contributions, padded with zero if only one feature supplies evidence. Reasons
+identify the strongest feature in each statistical branch; they are not full
+forest attribution or an exhaustive decomposition of the score.
+
+This diagnostic is **not** a canonical per-metric `anomalies` row or AI-04
+`AnomalySignal`. It has no `metric_name`; `up/down` denotes heuristic performance
+movement rather than metric `above/below`, and its severity set includes
+`normal/critical`. ARCH-03 must settle that mapping before AI-06 persists or
+adapts it. No mapping is silently added here.
 
 ## 7. Rules and Semantics
 
-### Detection ensemble
+### Robust Z contribution
 
-AI-02 uses three detectors:
-
-1. **Robust z-score**
-   - Baseline is the historical campaign median.
-   - Dispersion uses MAD scaled by `1.4826`.
-   - The normalized contribution is capped to `[0,1]` using a six-sigma scale.
-   - If historical MAD is zero, an unequal value is treated as maximally abnormal.
-
-2. **IQR**
-   - Baseline uses the historical first and third quartiles.
-   - The normal interval is `[Q1 - 1.5*IQR, Q3 + 1.5*IQR]`.
-   - Values outside the interval receive a normalized score capped to `[0,1]`.
-   - A zero IQR with a different current value is treated as maximally abnormal.
-
-3. **Isolation Forest**
-   - Uses AI-01 features as the model matrix.
-   - `n_estimators=200`.
-   - Default contamination is `0.05`.
-   - Default `random_state=42`.
-   - Raw decision values are normalized to `[0,1]`.
-
-### Ensemble weighting
-
-The final score is:
+For a feature with historical median `m`, historical MAD and current value `x`:
 
 ```text
-final_score =
-    0.40 * robust_z_score
-  + 0.20 * iqr_score
-  + 0.40 * isolation_score
+floor = max(abs(m) * 0.05, 1e-12)     for level/rolling features
+floor = 0.05                        for relative-change trend features
+scale = max(1.4826 * MAD, floor)
+z_feature = min(abs(x - m) / (6 * scale), 1)
 ```
 
-The result is bounded to `[0,1]`.
+The trend floor is five percentage points, not five percent of a zero-centered
+trend. Floors prevent tiny quantization/rolling variation from becoming unlimited
+evidence when MAD is zero or very small. They are minimum spread assumptions,
+not guarantees of calibrated probabilities or universal business thresholds.
 
-### Severity
+### IQR contribution
+
+Compute historical Q1 and Q3, and use:
+
+```text
+width = max(Q3 - Q1, floor)
+lower = Q1 - 1.5 * width
+upper = Q3 + 1.5 * width
+iqr_feature = 0                      inside [lower, upper]
+iqr_feature = min(distance / (3 * width), 1)   outside the interval
+```
+
+`distance` is the nonnegative distance to the violated fence. The same
+feature-specific floor applies. A zero-width history is no longer an automatic
+maximum for any unequal value.
+
+### Statistical aggregation and precision
+
+Per-feature contributions are rounded to six decimal places. Each branch returns
+`(largest + second_largest) / 2`, padding missing evidence with zero and rounding
+the aggregate to six places with Decimal half-even rounding. A single saturated
+feature contributes at most `0.5` to a statistical branch. Two features need not
+be statistically independent; no independence claim is made.
+
+Hand-calculable assertions:
+
+- Spend history `[1,2,3,4,5]`, current `8`: median `3`, MAD `1`, Q1 `2`, Q3 `4`.
+  Per-feature Z `0.562076`, IQR `0.166667`; with no other abnormal feature the
+  reported components are `0.281038` and `0.083334`.
+- Constant spend `100`, current `110`: effective scale/width `5`, upper fence
+  `107.5`. Per-feature Z `0.333333`, IQR `0.166667`; reported components
+  `0.166666` and `0.083334`.
+- A zero-centered trend moving to `0.10` uses width `0.05`; the same reported
+  values result. Future/current rows cannot enter historical baselines.
+
+### Isolation Forest
+
+Partially missing columns use the observed group median **only in the forest
+matrix**. Fully unavailable columns are omitted. Original `None` values remain
+unchanged. The model uses `n_estimators=200`, seed `42` by default and the supplied
+`contamination`. Negative decision values are min/max-normalized within the group;
+equal raw values produce zeros. This existing normalization is unchanged.
+
+The forest fits all supplied dates, including dates later than a scored row.
+Scores can change when new rows are supplied; they are retrospective relative
+signals, not causal online predictions or anomaly probabilities. In particular,
+`contamination=0.05` does not guarantee a 5% ensemble false-positive rate.
+
+### Ensemble, severity and direction
+
+```text
+score = clip(0.40 * robust_z_score + 0.20 * iqr_score + 0.40 * isolation_score, 0, 1)
+```
 
 | Score | Severity |
 |---|---|
-| `< 0.20` | `normal` |
-| `0.20–<0.40` | `low` |
-| `0.40–<0.60` | `medium` |
-| `0.60–<0.80` | `high` |
-| `>= 0.80` | `critical` |
+| below 0.20 | normal |
+| 0.20 to below 0.40 | low |
+| 0.40 to below 0.60 | medium |
+| 0.60 to below 0.80 | high |
+| at least 0.80 | critical |
 
-### Direction
+Weights and severity boundaries are unchanged. The reference benchmark flags
+**critical** scores (`>=0.80`). That operating point does not claim the same
+quality for the toy regression's `>=0.40`, nor establish a production alert/API
+policy; ARCH-03 must make that policy explicit.
 
-Direction is inferred from abnormal movement in business-performance features.
+`direction` remains the original `normal/up/down/mixed` business-performance
+heuristic. It combines movements in different units and is not a causal finding
+or per-metric direction. Reasons are deduplicated statistical explanations.
 
-- `up`: performance moved in a positive direction.
-- `down`: performance moved in a negative direction.
-- `mixed`: evidence points in both directions.
-- `normal`: no directional abnormality or insufficient history.
+### History gates
 
-### Missing values
-
-`None` from AI-01 is preserved as the missing-value representation.
-
-Missing values are skipped by interpretable detectors. For Isolation Forest only, a partially missing feature is replaced by its observed organization/campaign median. A column with no observations is omitted.
-
-### Insufficient data
-
-Fewer than five observations in an organization/campaign group do not provide a usable forest baseline. In this case the detector returns a normal result with score `0` and reason:
-
-```text
-insufficient campaign history
-```
-
-Robust Z-score and IQR have a separate gate: at least five strictly earlier observations,
-and five non-missing historical values for the feature. Thus early rows can have zero statistical
-components even when the complete group has ten records. The forest is retrospective: it fits
-all supplied dates in the group, including dates later than the row being scored. These batch
-scores are not evidence of causal online detection or a held-out backtest.
-
-### Ordering and determinism
-
-- Organization/campaign groups are evaluated independently.
-- Histories are sorted before fitting; output is sorted by organization UUID, campaign UUID, and date.
-- Equivalent reordered inputs produce identical output.
-- Isolation Forest uses a fixed seed by default.
-- Repeating the same input produces the same result.
-
-### Duplicates
-
-AI-02 itself does not create or validate raw duplicate campaign-day records. Duplicate and source-contract validation belong to AI-01.
+Empty input returns `()`. A group with fewer than five total records receives
+score-zero results with `insufficient campaign history`. Each statistical feature
+separately needs five strictly earlier nonmissing observations. Current/future
+values cannot satisfy this requirement. Missing statistical values are skipped.
 
 ## 8. Public Interfaces
 
-### `detect_anomalies(records, *, contamination=0.05, random_state=42)`
-
-**Input:** iterable of AI-01 `FeatureRecord` objects.
-
-**Output:** tuple of `AnomalyResult` objects.
-
-**Errors / edge cases:** empty input returns an empty tuple; insufficient campaign history returns normal results rather than raising.
-
-**Side effects:** none.
-
-### `AnomalyResult`
-
-Frozen result dataclass containing the final anomaly result and diagnostic evidence.
+- `detect_anomalies`: typed pure analytical function shown above; no I/O side effects.
+- `AnomalyResult`: immutable campaign-day diagnostic described above.
+- `scripts/ai02_benchmark.py`: test/evidence replay, not a production entry point.
+  It can export source CSV, explicit labels/clean masks and results, and exits
+  nonzero if any declared quality gate fails.
+- `scripts/ai02_evidence.py`: read-only diagnostic trace of all historical Nour rows;
+  it deliberately does not calculate quality without dated ground truth.
 
 ## 9. Data Ownership
 
 ### Reads
 
-- AI-01 `FeatureRecord` values supplied by the caller.
-- AI-01-derived performance and trend features contained in each record.
+Caller-supplied authorized AI-01 features. Benchmark tooling additionally reads its
+own synthetic generator or the committed migration's literal fact block.
 
 ### Writes
 
-- No persistent database writes by AI-02.
+No runtime persistent writes. Optional benchmark export writes only to the
+explicit local audit directory chosen by its operator.
 
 ### Must Never Read
 
-- OAuth tokens.
-- User passwords.
-- Provider credentials.
-- Raw provider API payloads.
-- Unrelated organizations' records.
+Credentials, OAuth tokens, user/password data, raw provider payloads or unauthorized
+tenant facts. The historical trace parses literals; it executes no SQL/migration.
 
 ### Must Never Write
 
-- Raw campaign data.
-- Credentials or tokens.
-- Provider secrets.
-- AI-01 source tables.
-- Historical migrations.
+Canonical facts, provider actions, credentials, migrations or another layer's
+owned tables. No DB/API/persistence interface is introduced by this task.
 
 ## 10. Security
 
-Organization identity is retained on output. Baselines, feature imputation, and forests are isolated by `(organization_id, campaign_id)`, including when the same campaign UUID appears in two tenants. The regression compares a combined call with independent per-tenant calls.
-
-AI-02 does not handle authentication credentials, OAuth tokens, passwords, or provider secrets.
-
-The component is intended to operate on already-authorized, organization-scoped AI-01 data.
+Grouping, imputation, baselines and forest fitting retain organization and
+campaign scope. Regression tests compare a combined two-tenant call sharing a
+campaign UUID with separate calls. Existing tenant tests remain intact.
+Runtime RLS/role enforcement and credential isolation remain AI-07/ADR follow-ups.
 
 ## 11. Error and Edge-Case Behavior
 
-| Case | Expected Behavior |
+| Case | Behavior |
 |---|---|
-| Empty input | Return `()`. |
-| Missing optional feature | Skip in statistical detectors; observed group median for partially missing matrix columns; omit entirely missing columns. |
-| Zero denominator / undefined ratio | Handled upstream by AI-01 as `None`. |
-| Insufficient campaign history (<5 records) | Return normal result with score `0`. |
-| Constant historical feature | Different current value receives maximum detector contribution. |
-| Zero IQR | Same as above for IQR detector. |
-| Duplicate raw campaign/day | Rejected upstream by AI-01. |
-| Database failure | N/A — AI-02 does not access the database directly. |
-| Provider/API failure | N/A — provider access belongs to connector/data layers. |
-| Timeout | N/A — AI-02 detection is an in-process function. |
-| Cancellation | N/A — no asynchronous AI-02 interface exists. |
+| Empty iterable | Empty tuple |
+| Fewer than five group records | Score zero, insufficient-history reason |
+| Fewer than five historical feature observations | No statistical evidence for that feature |
+| Missing optional feature | Skip statistics; median imputation/drop-column for the forest |
+| Zero/near-zero historical spread | Finite documented dispersion floor |
+| One anomalous feature | At most 0.5 in each statistical branch; corroboration needed for saturation |
+| Equivalent reordered records | Same sorted results |
+| Duplicate raw campaign-day | Rejected by upstream AI-01 |
+| Missing/duplicate benchmark predictions | Evaluator raises instead of shrinking the denominator |
+| DB/provider failure, timeout or cancellation | N/A — no such I/O/async path exists here |
 
 ## 12. Testing
 
-### Unit Tests
+`test_detector.py` covers empty/short histories, mathematical formulas and floors,
+trend percentage points, near-constant rolling features, top-two corroboration,
+feature-specific sparse history, constant normal data, positive/negative changes,
+missing columns, tenant collision, input ordering and repeatability.
 
-`tests/unit/ai/test_detector.py` covers:
+`test_detector_evaluation.py` retains the earlier 30-event/30-clean homogeneous
+21-day regression at threshold `0.40`. It remains supplemental evidence.
 
-- empty input;
-- insufficient history;
-- normal campaign scoring;
-- deterministic repeated calls;
-- campaign isolation;
-- strong downward anomaly detection;
-- strong upward anomaly detection.
+`test_detector_benchmark.py` verifies reproducibility, pinned data digests,
+complete clean/anomaly labels, variable clean histories, result coverage,
+separate event/day/campaign denominators, and the quality gates on **both**
+90-day seeds. All facts pass real AI-01 engineering before detection.
 
-`tests/unit/ai/test_detector.py` also checks tenant/campaign UUID collisions, shuffled input,
-statistical history gates, and missing matrix columns. The 7 October review adds a
-hand-calculable nonconstant baseline: history `[1, 2, 3, 4, 5]` and current value `8`
-produce robust contribution `0.562076` and IQR contribution `0.166667`. Sparse-history
-cases prove that four observed values are insufficient even with six earlier rows, while
-five observed values activate both statistical detectors. Current and future values are
-excluded from these baselines and gates. The flat-history assertion now proves
-`score == 0` and `severity == normal`, not merely that a row is below critical severity.
-
-`tests/unit/ai/test_detector_evaluation.py` passes raw `MetricRecord` fixtures through real AI-01
-feature engineering. It covers 30 homogeneous clean campaigns and 30 explicitly injected final-day
-events across spend-waste, CTR-drop, and improvement patterns (60 campaigns × 21 days = 1,260 rows).
-At the existing fixture threshold `score >= 0.40`, it reports event recall, clean-day FPR, and
-clean-campaign FPR with explicit denominators. These simple synthetic fixtures are not the full
-DATA-02/PROD-01 acceptance dataset.
-
-`scripts/ai02_evidence.py` parses only the committed migration's literal daily-metrics block,
-executes no SQL, engineers features, and traces all 360 Nour observations. It deliberately does
-not calculate recall/FPR without approved ground-truth labels.
-
-### Integration Tests
-
-N/A — current AI-02 implementation does not directly perform database I/O. AI-01 owns the database loading path.
-
-### E2E Impact
-
-N/A — no AI-02 REST endpoint or UI integration is part of this task.
+Integration/E2E: N/A for standalone detector I/O. Configured repository CI still
+checks the backend, migrations, frontend and Compose smoke paths.
 
 ## 13. Verification
 
-Independent execution of verification commands on 6 October 2026, Linux / Python 3.12.3,
-against prepared commit `a4a7251c20d9ec424b746416bc41b3cdbf695d3f`, which incorporates
-`main` at `e5806de5e562a1b11076ae73c026214dcc2d83c3`. This agent verification does not
-replace independent human review. A fresh temporary environment was installed with
-`uv venv --python python3.12 /tmp/pr19-venv` and
-`uv pip install --python /tmp/pr19-venv/bin/python -e 'apps/backend[dev]'` from the root.
-Installed numerical versions: NumPy 2.5.3, scikit-learn 1.9.1, SciPy 1.18.1. Commands below
-run from `apps/backend` unless marked repository root; `/tmp/pr19-venv/bin/` selects these tools.
+Prepublication verification on 15 October 2026:
 
-| Command | Result | Evidence |
+Fresh environment:
+
+```bash
+uv venv /tmp/ai02-acceptance-venv --python python3.12
+uv pip install --python /tmp/ai02-acceptance-venv/bin/python -e 'apps/backend[dev]'
+```
+
+Observed environment: CPython 3.12.14; NumPy 2.5.4, scikit-learn 1.9.1, SciPy 1.18.1.
+Commands below use that environment; backend commands run from `apps/backend`.
+
+| Check | Result |
+|---|---|
+| `ruff check . ../../scripts/ai02_evidence.py ../../scripts/ai02_benchmark.py` | PASS |
+| `ruff format --check . ../../scripts/ai02_evidence.py ../../scripts/ai02_benchmark.py` | PASS |
+| `mypy src` | PASS — 90 source files |
+| `pytest tests/unit -q -k 'not ninety_day'` | PASS — 161 tests, 2 dependency warnings; benchmark replay checked separately |
+| `pytest tests/unit/ai/test_detector_benchmark.py -q -s` | PASS — 5 tests, including both 90-day replays |
+| Root benchmark replay, seeds 20261015 and 20261016 | PASS — exact counts below |
+| Root `scripts/ai02_evidence.py` historical trace | PASS — all 360 rows traced; historical quality remains unmeasured |
+| Documentation governance and whitespace check | PASS — task headings and whitespace checked |
+| Local full PostgreSQL/migration/Compose checks | NOT RUN — PostgreSQL and Docker executables unavailable; final-head CI is required |
+| Final-head remote CI | NOT RUN — awaiting publication at this prepublication checkpoint; final-head results are recorded in PR #19 before merge |
+
+| Reference measure | Development | Reserved validation |
 |---|---|---|
-| `/tmp/pr19-venv/bin/ruff check . ../../scripts/ai02_evidence.py` | PASS | No lint errors |
-| `/tmp/pr19-venv/bin/ruff format --check . ../../scripts/ai02_evidence.py` | PASS | 154 files formatted |
-| `/tmp/pr19-venv/bin/mypy src` | PASS | 89 source files; strict configuration retained |
-| `/tmp/pr19-venv/bin/pytest tests/unit/ai/test_detector.py tests/unit/ai/test_detector_evaluation.py -q -s` | PASS | 12 tests; synthetic TP 30/30, recall 100%, clean-day/campaign FPR 0% |
-| `/tmp/pr19-venv/bin/pytest tests/unit -q` | PASS | 144 tests, 2 dependency deprecation warnings |
-| Full `pytest`, PostgreSQL tests, migrations, Compose stack | NOT RUN — PostgreSQL unavailable and Docker daemon inaccessible | `docker info --format '{{.ServerVersion}}'` failed with socket permission denied; `sudo -n docker info --format '{{.ServerVersion}}'` requires a password; no local PostgreSQL installation |
-| Nour trace (repository root): `PYTHONPATH=apps/backend/src /tmp/pr19-venv/bin/python scripts/ai02_evidence.py` | PASS | 360 rows across four campaigns |
-| Nour recall/FPR acceptance | NOT RUN — approved labels unavailable | DATA-02 attachment currently contains only README; referenced generator/validation JSON absent |
-| Documentation governance (repository root): `bash .github/scripts/check-documentation-governance.sh origin/main HEAD` | PASS | Current main comparison includes the AI-02 task document |
-| `git diff --check origin/main HEAD` (repository root) | PASS | No whitespace errors |
-| CI at local prepublication verification | NOT RUN — awaiting publication at that time | Subsequent run on `57c8009`: [37526973811](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/37526973811) completed PASS; Backend 245 passed / 9 skipped, Frontend 3 passed, documentation and Compose checks passed. These results are scoped to that head; latest-head evidence is in the PR description |
+| Event recall | 30/30 = 100% | 30/30 = 100% |
+| Anomalous-day recall | 149/152 = 98.03% | 144/152 = 94.74% |
+| Clean-day FPR | 62/5,248 = 1.18% | 59/5,248 = 1.12% |
+| Clean-campaign FPR | 0/30 = 0% | 1/30 = 3.33% |
 
-Source recheck on 6 October 2026: the live AI-02 task still requires labeled clean/anomaly
-cases before merge and the ≥80% recall / ≤5% FPR target. DATA-02 links only
-`README_DATA02.md`, which names `campaign_data.csv`, `generate_demo_dataset.py`, and
-`validation_results.json` but supplies no dated labels or clean masks. PROD-01 §4.2 defines
-FPR on clean campaigns; its campaign stories are not dated ground truth. Repository files
-and fetched branch history contain no referenced generator or validation JSON. No labels,
-clean periods, or thresholds were inferred to close this gap.
-
-Nour diagnostic results at the existing fixture threshold `0.40`:
-
-| Campaign | Rows | Flagged days | Maximum score |
-|---|---:|---:|---:|
-| Summer Collection Push | 90 | 26 | 0.94778520 |
-| Winter Pre-Launch | 90 | 28 | 0.83555380 |
-| Flash Sale Banner | 90 | 48 | 1.000 |
-| Evergreen Basics | 90 | 35 | 0.90441160 |
-
-These counts are **not** TP/FP labels or acceptance metrics. In particular, high flag volume on
-Winter Pre-Launch warrants calibration review. Thresholds/formulas have not been tuned to these
-outputs. The three former fixture-only claims are superseded by this dated evidence.
-
-### Review follow-up — 7 October 2026
-
-The follow-up changes only tests and this document; algorithms, thresholds and shared
-contracts remain unchanged. Live AI-02/DATA-02 task pages, their available discussions,
-GitHub reviews/inline comments, repository files and fetched history were rechecked. No
-approved dated labels/clean masks or human approval of the revised head were available.
-The earlier CI logs identify seven OAuth PostgreSQL repository tests and two Data entity
-normalization PostgreSQL tests skipped because `TEST_DATABASE_URL` is unset; these are
-NOT RUN, not passes. Docker socket access remains denied locally.
-
-A new temporary environment was installed with
-`uv venv --python python3.12 /tmp/pr19-review-venv` and
-`uv pip install --python /tmp/pr19-review-venv/bin/python -e 'apps/backend[dev]'`.
-From `apps/backend`:
-
-| Command | Result | Evidence |
-|---|---|---|
-| `/tmp/pr19-review-venv/bin/ruff check . ../../scripts/ai02_evidence.py` | PASS | No lint errors |
-| `/tmp/pr19-review-venv/bin/ruff format --check . ../../scripts/ai02_evidence.py` | PASS | 154 files formatted |
-| `/tmp/pr19-review-venv/bin/mypy src` | PASS | 89 source files, strict mode |
-| `/tmp/pr19-review-venv/bin/pytest tests/unit/ai/test_detector.py tests/unit/ai/test_detector_evaluation.py -q -s` | PASS | 15 tests; synthetic metrics unchanged |
-| `/tmp/pr19-review-venv/bin/pytest tests/unit -q` | PASS | 147 tests, two dependency deprecation warnings |
-| Root: `PYTHONPATH=apps/backend/src /tmp/pr19-review-venv/bin/python scripts/ai02_evidence.py` | PASS | All 360 observations; diagnostic counts unchanged |
-| Seeded recall/FPR acceptance | NOT RUN — approved labels and clean masks unavailable | Existing task entry contract still requires these before merge |
-
-Latest-head remote CI is recorded in the PR description after execution.
-Independent human review remains required; additional agent review does not satisfy it.
+All four declared reference gates pass. The dataset digests, generation rules,
+exact interval matching and export commands are in the [benchmark record](../testing/AI-02-seeded-benchmark.md).
+The validation seed was scored after the implementation was fixed, with no
+subsequent score-policy adjustment. This is an independently seeded replay, not
+a claim that the retrospective detector held out future dates from fitting.
 
 ## 14. Known Limitations
 
-- Full DATA-02/PROD-01 quality acceptance remains incomplete. The attached DATA-02 README gives
-  business-level problems/aggregate ROAS, but no exact anomaly dates, clean date masks, generator,
-  or `validation_results.json`. These labels must be source-backed before scoring acceptance.
-- Controlled synthetic evaluation is homogeneous and deliberately easy; repeating injected patterns
-  does not establish real-data accuracy or generalization.
-- Isolation Forest uses all supplied dates and min/max-normalizes scores within a group. Future rows
-  can change earlier scores; `contamination=0.05` is not a guarantee of 5% ensemble FPR.
-- Statistical detectors use all earlier history rather than a rolling baseline; normal seasonal
-  changes and sustained regime shifts need labeled evaluation.
-- Overall direction combines raw movements with different units and is a diagnostic heuristic,
-  not a persisted per-metric direction. Thresholds/formulas remain those submitted in PR #19.
-- No persistent outputs, production caller, or AI-04 adapter exist. The agreed output mapping and
-  chronic-underperformance demo behavior remain integration/contract gaps, not implemented claims.
-- Local PostgreSQL/Compose checks could not run; final-head CI evidence belongs in the PR
-  description. Independent human review of the revised changes remains a merge requirement.
-- AI-02 remains incomplete and the PR must stay open until source-backed seeded acceptance
-  and required independent human review are satisfied, even if CI passes.
+- Historical DATA-02/Nour recall/FPR: **NOT RUN — original approved dated labels,
+  clean masks and generator remain unavailable**. The new benchmark is explicitly
+  distinct; no historical labels are inferred from detector output.
+- The reference events are controlled strong changes. Their quality figures do
+  not establish real-campaign accuracy, subtle-event recall or generalization.
+- Thirty clean campaigns give a coarse FPR estimate; 1/30 is already 3.33%.
+- The 5%/five-percentage-point floors and top-two corroboration trade sensitivity
+  to small isolated changes for fewer severe false alerts. Related features are
+  correlated; scores are not calibrated probabilities. Only critical-alert quality
+  is established on the reference benchmark.
+- The forest remains retrospective and group-relative. The statistical history
+  is expanding rather than seasonal; online/seasonal acceptance is future work.
+- Constant chronic underperformance, the full product demo, a canonical anomaly
+  adapter, persistent outputs and a production caller are not implemented here.
+- INT-01's historical `feature_daily` input differs from merged AI-01's in-memory
+  features from `daily_metrics`; ARCH-03 must resolve this inherited boundary.
+- Human approval is treated as satisfied only under the project lead's explicit
+  instruction; no independent approval event is invented in GitHub.
 
 ## 15. Follow-Up Tasks
 
-- **AI-02 completion blocker — DATA-02/dataset owner:** provide the referenced generator and
-  validation JSON (or approved dated labels/clean masks), then run and report full quality metrics.
-  Do not mark AI-02 Done solely on the controlled synthetic result.
-- **ARCH-03 — project lead/AI and affected owners:** reconcile campaign-day diagnostics with
-  canonical per-metric persisted anomalies and AI-04 `AnomalySignal`; agree evaluation granularity,
-  threshold, labels, and online versus retrospective semantics.
-- **AI-06 — AI owner:** wire the approved adapter, persist outputs, and integrate the Worker.
-- **AI-07 — AI owner:** complete broader role/security and isolation acceptance.
+- **ARCH-03:** settle feature-source ownership, retrospective/online semantics,
+  critical versus other alert policies, campaign-day/per-metric mapping, and the
+  AI-04/persistence adapter. Record the changed scoring semantics in that handoff.
+- **DATA-02/product owner:** recover the original generator/validation artifacts
+  and supply independent historical Nour labels; evaluate without retrospective
+  relabeling or post-hoc clean exclusions.
+- **AI-06:** implement only the agreed adapter, orchestration and idempotent writes.
+- **AI-07:** complete broader role/security/organization-isolation acceptance.
+- Future model-quality work: larger independent datasets, subtle/seasonal change
+  tests, chronic-performance rules and production alert calibration.
 
 ## 16. References and Evidence
 
-- [AI-02 Notion task](https://app.notion.com/p/3bc7de83a91b812f90a3d45525c40682)
+- [AI-02 task](https://app.notion.com/p/3bc7de83a91b812f90a3d45525c40682)
 - [PR #19](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/19)
-- [AI-01 input contract](AI-01-feature-pipeline.md)
-- [Canonical schema](../../tests/contracts/canonical.json); applied migration
-  `apps/backend/alembic/versions/0004_ai_layer_tables.py`
-- [PROD-01](https://app.notion.com/p/3bc7de83a91b810d8199fd0dcf1a57b2),
-  [DATA-02](https://app.notion.com/p/3bc7de83a91b813791a2d7a667c6e68d), and
-  [INT-01](https://app.notion.com/p/3bc7de83a91b81a18d20f2aa5dfaf3e0) source attachments reviewed
-- [Nour trace script](../../scripts/ai02_evidence.py)
-- ADR: N/A — no architectural change or new persistence is introduced
+- [Reference benchmark](../testing/AI-02-seeded-benchmark.md)
+- [AI-01 input](AI-01-feature-pipeline.md); [AI-04 boundary](AI-04-recommendation-engine.md)
+- [Canonical schema](../../tests/contracts/canonical.json)
+- DATA-02 `README_DATA02.md`, PROD-01 scope freeze and original AI-02 attachment
+  re-read on 15 October; none supplies original dated ground truth.
 
-Original AI-02 implementation credit remains with Ahmed Ibrahem. Hussein Elhaddad owns the
-remaining tenant/evaluation handoff per the approved task notes; the revised patch still needs
-independent human review before merge.
+No new architectural decision, shared output shape, persistence or migration is
+established by this change. ARCH-03 remains the shared-interface decision point.
