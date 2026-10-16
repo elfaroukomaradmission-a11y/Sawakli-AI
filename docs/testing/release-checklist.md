@@ -44,7 +44,7 @@ refuses (before connecting) any database whose name is not plain `a-z0-9_` endin
 |---|---|---|---|---|
 | 4.1 | Start the test database | `docker compose up -d postgres-test` | Container `sawakli-test-postgres` healthy | System QA |
 | 4.2 | Fresh, migrated test databases | `export DATABASE_URL=postgresql+psycopg://postgres:change-me@localhost:5434/sawakli_test TEST_DATABASE_URL=postgresql+psycopg://postgres:change-me@localhost:5434/sawakli_integration_test` then `python scripts/integration_harness.py fresh-db DATABASE_URL TEST_DATABASE_URL` | Two `PASS fresh-db` lines | System QA |
-| 4.3 | Backend suite against real PostgreSQL | `(cd apps/backend && pytest -rs)` (returns to the repository root) | All passed, no `skipped` count in the summary line (QA-00 baseline: 265 passed) | System QA |
+| 4.3 | Backend suite against real PostgreSQL | `(cd apps/backend && pytest -rs)` (returns to the repository root) | All passed, no `skipped` count in the summary line (QA-00 baseline: 296 passed after merging `main` `7c66664`) | System QA |
 | 4.4 | Migration round-trip on a fresh server | `docker run -d --rm --name sawakli-roundtrip -e POSTGRES_PASSWORD=<synthetic> -e POSTGRES_DB=sawakli_roundtrip -p 5435:5432 postgres:18`, then `ROUNDTRIP_DATABASE_URL=postgresql+psycopg://postgres:<synthetic>@localhost:5435/sawakli_roundtrip python scripts/integration_harness.py roundtrip`, then `docker rm -f sawakli-roundtrip` | `PASS roundtrip: 23 tables at head, 0 after downgrade base, 23 after re-upgrade` | System QA |
 
 ## 5. Demo login (API level)
