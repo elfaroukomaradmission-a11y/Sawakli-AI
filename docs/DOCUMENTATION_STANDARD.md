@@ -111,6 +111,34 @@ document is required for features, behavioral fixes, migrations, contract change
 refactors. A reviewer may approve an exemption for a truly non-behavioral maintenance change, but
 the pull request must state why no task document is needed.
 
+### Task Template and Implementation Walkthrough
+
+New task documents use the current **17-section** template. Section **5, Step-by-Step
+Implementation Walkthrough**, sits immediately after **4, Architecture**, and before **6, Inputs**.
+The remaining sections continue in order through **17, References and Evidence**; preserve every
+section and its guidance, using `N/A — <reason>` where appropriate.
+
+The walkthrough explains the practical outcome in plain language, then maps acceptance criteria to
+implementation steps and verification evidence. Use sequential, task-specific steps with **What**,
+**Where**, **How it works**, and **Testing** explanations: what each step achieves and why, where the
+relevant implementation or artifact lives, how actions and data or decisions connect to adjacent
+steps, and how to verify the expected behavior. Include a small Mermaid diagram when it materially
+clarifies the flow. Adapt the detail to the task's layer, including architecture and QA work; do
+not require irrelevant code details for non-code tasks.
+
+For completed work, document the actual implementation and verify technical claims against current
+repository sources. Clearly label proposed or unfinished steps. Keep expected outcomes distinct
+from executed checks; report actual verification as `PASS`, `FAIL`, or `NOT RUN — <reason>`, with
+links to the Verification section's commands and observed evidence. Style references are not
+technical authority.
+
+The [documentation governance check](../.github/scripts/check-documentation-governance.sh) requires
+new task documents to use the 17-section format. Documents present at the comparison's base revision
+may retain the original complete **16-section** format, where **5, Inputs** follows Architecture
+and **16, References and Evidence** is the final section, or adopt the complete current format.
+Both formats require the exact headings in order, without missing, duplicate, mixed, or incorrectly
+numbered sections. Existing task documents do not need a bulk rewrite.
+
 ## 5. Documentation Lifecycle
 
 Use this workflow for every implementation task:
@@ -244,6 +272,7 @@ A task is not Done until every applicable item is complete:
 - [ ] Technical task document exists or was updated.
 - [ ] Scope and non-goals are documented.
 - [ ] Prerequisites are documented.
+- [ ] Implementation walkthrough connects acceptance criteria, steps, and evidence (current template).
 - [ ] Inputs and outputs are documented.
 - [ ] Data ownership is documented.
 - [ ] Public interfaces are documented.
