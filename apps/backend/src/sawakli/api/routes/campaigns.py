@@ -28,7 +28,7 @@ def get_campaign(campaign_id: UUID, auth: OrgAuth, db: DbSession) -> Campaign:
         Campaign,
         auth.organization.id,
     )
-    campaign = db.scalar(stmt)
+    campaign: Campaign | None = db.scalar(stmt)
     if campaign is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return campaign
