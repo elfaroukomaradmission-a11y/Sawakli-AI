@@ -33,7 +33,7 @@ class Base(DeclarativeBase):
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg://postgres:change-me@localhost:5433/sawakli",
+    # "postgresql+psycopg://postgres:change-me@localhost:5433/sawakli",
 )
 
 

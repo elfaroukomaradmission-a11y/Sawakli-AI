@@ -72,3 +72,13 @@ def get_auth_context(
         )
 
     return AuthContext(user=user, organization=organization)
+
+def require_org_match(
+    org: UUID,
+    auth: Annotated[AuthContext, Depends(get_auth_context)],
+) -> AuthContext:
+    """The {org} in the URL must equal the token's org. It is checked, never trusted."""
+    if org != auth.organization.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return auth
+OrgAuth = Annotated[AuthContext, Depends(require_org_match)]
