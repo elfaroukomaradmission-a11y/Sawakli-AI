@@ -73,6 +73,7 @@ def get_auth_context(
 
     return AuthContext(user=user, organization=organization)
 
+
 def require_org_match(
     org: UUID,
     auth: Annotated[AuthContext, Depends(get_auth_context)],
@@ -81,4 +82,6 @@ def require_org_match(
     if org != auth.organization.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return auth
+
+
 OrgAuth = Annotated[AuthContext, Depends(require_org_match)]

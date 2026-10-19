@@ -1,22 +1,25 @@
-from fastapi import APIRouter, HTTPException, Query, status
-from uuid import UUID
-from sqlalchemy import select
 import datetime as dt
 from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 
 from sawakli.api.deps import DbSession, OrgAuth, apply_org_scope
 from sawakli.api.schemas.campaigns import CampaignPublic
-from sawakli.db.models.campaign import Campaign
 from sawakli.api.schemas.metrics import DailyMetricPublic
+from sawakli.db.models.campaign import Campaign
 from sawakli.db.models.daily_metric import DailyMetric
 
 router = APIRouter(prefix="/api/orgs/{org}/campaigns", tags=["Dashboard"])
+
 
 @router.get("", response_model=list[CampaignPublic])
 def list_campaigns(auth: OrgAuth, db: DbSession) -> list[Campaign]:
     stmt = apply_org_scope(select(Campaign).order_by(Campaign.name), Campaign, auth.organization.id)
     campaigns = db.scalars(stmt).all()
     return list(campaigns)
+
 
 @router.get("/{campaign_id}", response_model=CampaignPublic)
 def get_campaign(campaign_id: UUID, auth: OrgAuth, db: DbSession) -> Campaign:
@@ -29,6 +32,7 @@ def get_campaign(campaign_id: UUID, auth: OrgAuth, db: DbSession) -> Campaign:
     if campaign is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return campaign
+
 
 @router.get("/{campaign_id}/metrics", response_model=list[DailyMetricPublic])
 def get_campaign_metrics(

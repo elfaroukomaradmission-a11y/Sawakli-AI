@@ -10,12 +10,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sawakli.db.session import Base
 
 
-class Platform(str, enum.Enum):
+class Platform(enum.StrEnum):
     meta = "meta"
     google = "google"
 
 
-class CampaignStatus(str, enum.Enum):
+class CampaignStatus(enum.StrEnum):
     active = "active"
     paused = "paused"
     removed = "removed"
