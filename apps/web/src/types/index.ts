@@ -1,5 +1,9 @@
-export type { User, AuthResponse, RegisterResponse, MeResponse } from './user'
+export type { User, AuthResponse, MeResponse } from './user'
 export type { Organization } from './organization'
+export type {
+  ConnectorSetupResponse,
+  CsvUploadResponse,
+} from './connector'
 export type {
   Campaign,
   CampaignPlatform,
