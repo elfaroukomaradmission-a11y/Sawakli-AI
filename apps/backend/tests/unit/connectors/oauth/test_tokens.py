@@ -294,3 +294,58 @@ def test_refresh_with_no_stored_refresh_token_is_refresh_denied():
 
     assert isinstance(result, ConnectorError)
     assert result.kind == TokenErrorKind.REFRESH_DENIED
+
+
+def test_refresh_without_new_refresh_token_keeps_existing_one():
+    """A provider's refresh response may omit the refresh token. The stored
+    one is still valid and must survive; access token and expiry update."""
+    repo = make_repo()
+    repo.save(
+        StoredToken(
+            data_source_id=DATA_SOURCE_ID,
+            provider=PROVIDER,
+            access_token="old-access",
+            refresh_token="original-refresh",
+            expires_at=PAST,
+            last_refreshed_at=PAST,
+        )
+    )
+    exchanger = FakeExchanger(
+        refresh_result=ExchangedToken(
+            access_token="new-access", refresh_token=None, expires_at=FUTURE
+        )
+    )
+
+    result = refresh_token(DATA_SOURCE_ID, PROVIDER, repo=repo, exchanger=exchanger)
+
+    assert result == FUTURE
+    stored = repo.get(DATA_SOURCE_ID)
+    assert stored.refresh_token == "original-refresh"
+    assert stored.access_token == "new-access"
+    assert stored.expires_at == FUTURE
+
+
+def test_two_refreshes_without_new_refresh_token_both_succeed():
+    repo = make_repo()
+    repo.save(
+        StoredToken(
+            data_source_id=DATA_SOURCE_ID,
+            provider=PROVIDER,
+            access_token="old-access",
+            refresh_token="original-refresh",
+            expires_at=PAST,
+            last_refreshed_at=PAST,
+        )
+    )
+    exchanger = FakeExchanger(
+        refresh_result=ExchangedToken(
+            access_token="new-access", refresh_token=None, expires_at=FUTURE
+        )
+    )
+
+    first = refresh_token(DATA_SOURCE_ID, PROVIDER, repo=repo, exchanger=exchanger)
+    second = refresh_token(DATA_SOURCE_ID, PROVIDER, repo=repo, exchanger=exchanger)
+
+    assert first == FUTURE
+    assert second == FUTURE
+    assert repo.get(DATA_SOURCE_ID).refresh_token == "original-refresh"

@@ -15,6 +15,7 @@ TokenExchanger get wired in once DATA-01's data_sources table lands.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -119,6 +120,10 @@ def refresh_token(
             retryable=True,
         )
 
+    # A refresh response may omit the refresh token; the stored one is still
+    # valid, so keep it. A new one (rotation) replaces it.
+    if exchanged.refresh_token is None:
+        exchanged = replace(exchanged, refresh_token=existing.refresh_token)
     _save_exchanged_token(data_source_id, provider, exchanged, repo=repo)
     return exchanged.expires_at
 
