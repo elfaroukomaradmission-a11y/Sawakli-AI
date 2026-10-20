@@ -1,4 +1,5 @@
 import base64
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -373,7 +374,9 @@ class UndecryptableRepository:
 OTHER_KEY = base64.b64decode(base64.b64encode(b"o" * 32))
 
 
-def test_status_wrong_key_is_connected_but_invalid_and_does_not_raise(caplog):
+def test_status_wrong_key_is_connected_but_invalid_and_does_not_raise(caplog, monkeypatch):
+    # Alembic's fileConfig (run in-process by DB fixtures) disables existing loggers.
+    monkeypatch.setattr(logging.getLogger("sawakli.connectors.oauth.tokens"), "disabled", False)
     repo = UndecryptableRepository(encrypt_token("synthetic-access", KEY), OTHER_KEY)
 
     status = check_connection_status(DATA_SOURCE_ID, repo=repo)
