@@ -7,7 +7,7 @@
 | Task | CONN-01 — Build Connector Package and CSV/Demo Parser |
 | Layer | Connector |
 | Owner | Mohamed Hassan (reassigned from Youssef Halawa, the original assignee) |
-| Status | **Implemented** — merged to `main` on 24 Aug 2026 in pull request #1 |
+| Status | **Implemented** — merged to `main` on 24 Aug 2026 (pull request #1); corrected on 21 Oct 2026 (pull request #30) |
 | Document type | Retroactive task document, written on 21 Oct 2026 for work merged before task documentation became mandatory |
 
 CONN-01 delivered `parse_csv_upload()`, the function that turns an uploaded CSV file into validated
@@ -111,7 +111,9 @@ for example `Row 3: 'spend' is negative (-5)`. A file with no usable header is r
 Every connector shares the same failure shape, `ConnectorError`, so the API and UI can show one
 kind of error regardless of which connector produced it.
 
-All steps below are **Implemented** and unchanged since pull request #4 merged (Section 14).
+Steps 1–5 are the original delivery (**Implemented**, pull request #1). Step 6 records a
+post-merge correction made in pull request #30: files saved as "UTF-8 with BOM" are now
+accepted.
 
 ### Acceptance Criteria → Steps and Evidence
 
@@ -121,7 +123,7 @@ The criteria are the Definition of Done on the Notion card, quoted verbatim.
 |---|---|---|
 | CSV parser returns the common RawResponse shape. | 2, 5 | PASS — `test_fully_valid_file` asserts a `RawResponse` with `row_count`, `parsed_rows` and `parse_warnings` (CI run 32722360428, re-run 21 Oct 2026; Section 14) |
 | Valid files parse successfully. | 4, 5 | PASS — `test_fully_valid_file`, `test_stringio_input_also_works`, `test_optional_columns_default_when_absent_from_header` (Section 14) |
-| Invalid header, encoding and empty-file cases produce typed errors or row warnings. | 3, 4 | PASS — `test_missing_required_column_in_header`, `test_badly_encoded_file_is_unreadable_encoding`, `test_truly_empty_file`, `test_empty_file_header_only_no_data_rows`, and five row-warning tests (Section 14) |
+| Invalid header, encoding and empty-file cases produce typed errors or row warnings. | 3, 4, 6 | PASS — `test_missing_required_column_in_header`, `test_badly_encoded_file_is_unreadable_encoding`, `test_truly_empty_file`, `test_empty_file_header_only_no_data_rows`, five row-warning tests, and the three UTF-8 byte-order-mark tests added in Step 6 (Section 14) |
 | Approved sample demo file passes. | 5 | NOT RUN — no approved sample file is committed to the repository (also recorded by the [TRK-06 register](../testing/TRK-06-integrated-baseline-register.md), §13.4). Partial evidence: on 21 Oct 2026 the QA-02 fixture `tests/fixtures/qa-02-demo.csv` (3 rows, added later by commit `6796721`) parsed with `row_count` 3 and no warnings |
 
 ### Step 1 — Define the shared connector error
@@ -193,6 +195,27 @@ The criteria are the Definition of Done on the Notion card, quoted verbatim.
 - **Testing:** `test_org_id_and_upload_id_are_not_required_to_be_meaningful`,
   `test_stringio_input_also_works`. Status: PASS (Section 14).
 
+### Step 6 — Post-merge corrections (October 2026)
+
+- **What:** While this document was being written retroactively on 21 Oct 2026 (pull request
+  #29), a probe showed that a CSV saved as "UTF-8 with BOM" was rejected. Many spreadsheet tools
+  offer this export format. A byte-order mark (BOM) is an invisible marker character, `U+FEFF`,
+  that some tools place at the start of a UTF-8 file. The parser kept it attached to the first
+  header cell, so `date` did not match and a valid file was rejected as `invalid_header`, with a
+  message saying `date` was missing.
+- **Where:** [`parser.py`](../../apps/backend/src/sawakli/connectors/csv/parser.py),
+  `parse_csv_upload()`, the decoding block at the start of the function.
+- **How it works:** Byte input is now decoded with Python's `utf-8-sig` codec instead of `utf-8`.
+  That codec removes one leading BOM if present and is otherwise identical to `utf-8`, so
+  non-UTF-8 files still return `unreadable_encoding`. Text input has one leading `U+FEFF` removed.
+  Nothing else changes: headers are still matched exactly and case-sensitively, and a header that
+  really lacks a required column is still rejected and names that column.
+- **Testing:** `test_utf8_bom_bytes_parse_like_plain_utf8`,
+  `test_utf8_bom_text_stream_parses_like_plain_text` and
+  `test_utf8_bom_does_not_hide_a_real_missing_column` failed on the unfixed code and pass after the
+  fix. The existing `test_badly_encoded_file_is_unreadable_encoding` still passes. Evidence: Section
+  14, "Post-merge corrections (21 Oct 2026)".
+
 ### Flow Diagram
 
 ```mermaid
@@ -215,7 +238,7 @@ flowchart TD
 
 | Field / Input | Type | Required | Source | Description |
 |---|---|---|---|---|
-| `file_stream` | `IO[bytes] \| IO[str]` | Yes | Caller (today the Backend upload route) | Whole file is read into memory. Bytes must be UTF-8; text streams are not re-decoded |
+| `file_stream` | `IO[bytes] \| IO[str]` | Yes | Caller (today the Backend upload route) | Whole file is read into memory. Bytes must be UTF-8, with or without a leading byte-order mark. Text streams are not re-decoded; one leading byte-order mark is removed |
 | `org_id` | `object` | Yes (positional) | Caller | Accepted for the INT-01 signature; not read. Organization scope is enforced by the caller |
 | `upload_id` | `object` | Yes (positional) | Caller | Accepted for the INT-01 signature; not read |
 
@@ -253,6 +276,7 @@ Columns outside these ten are ignored. Column order does not matter.
 - **Negative values:** skip the row (`'<name>' is negative (<value>)`), as required by PROD-01.
 - **Non-numeric values:** skip the row (`'<name>' is not a valid number ('<value>')`). Integer
   columns reject fractional values such as `1.5`.
+- **Encoding:** UTF-8. One leading byte-order mark is removed before the header is read (Step 6).
 - **Dates:** must match `^\d{4}-\d{2}-\d{2}$` and parse as a real date; `2024-02-30` is rejected.
 - **Platform:** only `meta` and `google`, case-insensitive.
 - **Consistency rule:** `bounces` greater than `sessions` skips the row. This is the template's
@@ -338,7 +362,7 @@ Exported from `sawakli.connectors.csv` (`csv/__init__.py`).
 | Provider or API failure | N/A — no external provider is called |
 | Timeout | N/A — synchronous and in-memory; no timeout is applied |
 | Cancellation | N/A — no long-running work or cancellation hook |
-| UTF-8 byte-order mark | A file saved as "UTF-8 with BOM" returns `invalid_header` naming `date`, because the BOM stays attached to the first header cell (observed on 21 Oct 2026; Section 15) |
+| UTF-8 byte-order mark | The mark is removed and the file parses like plain UTF-8 (Step 6). Before the 21 Oct 2026 correction, such a file returned `invalid_header` naming `date` |
 | Header case | Header names are case-sensitive: `Date` instead of `date` returns `invalid_header` |
 | Short or long rows | Short rows are padded with blanks (then validated); extra cells are dropped |
 
@@ -347,7 +371,7 @@ Exported from `sawakli.connectors.csv` (`csv/__init__.py`).
 ### Unit Tests
 
 [`tests/unit/connectors/csv/test_parser.py`](../../apps/backend/tests/unit/connectors/csv/test_parser.py),
-14 tests, no database:
+17 tests, no database (14 from the original delivery, 3 added in Step 6):
 
 - A fully valid two-row file returns every field with the correct type.
 - One negative `spend` row is skipped with a warning while the other row is kept.
@@ -360,6 +384,10 @@ Exported from `sawakli.connectors.csv` (`csv/__init__.py`).
 - A file without `sessions` and `bounces` columns defaults them to `0`.
 - A blank required value, a bad date format, an unknown platform and a non-numeric value are each
   skipped with a warning.
+- A file with a UTF-8 byte-order mark parses like plain UTF-8, as bytes and as a text stream
+  (Step 6).
+- A byte-order mark followed by a header that really lacks `revenue` still returns
+  `invalid_header` naming `revenue`, not `date` (Step 6).
 
 At merge the suite reported 16 tests: these 14 plus the two scaffold placeholders
 `tests/unit/test_placeholder.py` and `tests/integration/test_placeholder.py` (commit `99c668f`).
@@ -418,21 +446,43 @@ python -c "<parse tests/fixtures/qa-02-demo.csv with parse_csv_upload>"
 | QA-02 fixture through the parser | PASS — `RawResponse`, `row_count` 3, no warnings |
 | Approved sample demo file | NOT RUN — no approved sample file in the repository |
 
-### Code unchanged since delivery
+### Code unchanged from delivery until the October correction
 
-`git log` on `connectors/csv/`, `connectors/errors.py` and `tests/unit/connectors/csv/` shows only
-commit `3ae8025` after the scaffold. The latest `main` CI run at the time of writing,
+Until pull request #30, `git log` on `connectors/csv/`, `connectors/errors.py` and
+`tests/unit/connectors/csv/` showed only commit `3ae8025` after the scaffold. The latest `main` CI run at the time of writing,
 [38951435772](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/38951435772)
 on `57bb11e`, passed the Backend job with "296 passed" and "skipped tests: 0".
+
+### Post-merge corrections (21 Oct 2026)
+
+Branch `fix/conn-01-02-hardening`, fix commit `2955856`, same environment as the re-run above.
+
+Before the fix, the new tests were run against the unfixed parser:
+
+```text
+pytest tests/unit/connectors/csv/test_parser.py -k bom
+FAILED test_utf8_bom_bytes_parse_like_plain_utf8
+  got ConnectorError(kind=invalid_header, message='Missing required column(s): date')
+FAILED test_utf8_bom_text_stream_parses_like_plain_text
+  got the same ConnectorError
+FAILED test_utf8_bom_does_not_hide_a_real_missing_column
+  message was 'Missing required column(s): date, revenue'
+3 failed
+```
+
+| Check | Result |
+|---|---|
+| New byte-order-mark tests before the fix | FAIL — 3 failed, for the reason above (expected) |
+| `pytest tests/unit/connectors/csv/test_parser.py -v` after the fix | PASS — 17 passed |
+| `ruff check .`, `ruff format --check .`, `mypy src` at `74c087b` | PASS — "All checks passed!", "160 files already formatted", "Success: no issues found in 90 source files" |
+| Full `pytest -rs` at `74c087b` against a throwaway `postgres:18` container prepared with `integration_harness.py fresh-db TEST_DATABASE_URL`, with the CI job's environment variables | PASS — 305 passed, 0 skipped, 0 failed |
+| Pull request #30 CI | NOT RUN — the pull request did not exist when this commit was written; result added in a later commit |
 
 ## 15. Known Limitations
 
 - **No approved sample file.** The Definition-of-Done line "Approved sample demo file passes" has
   no committed evidence. The demo dataset is loaded by migration `0009_seed_demo_data.py` as SQL,
   not through the parser.
-- **UTF-8 byte-order mark is not handled.** Spreadsheet tools often save CSV as "UTF-8 with BOM".
-  Such a file is rejected as `invalid_header` (missing `date`), with a message that does not
-  explain the real cause.
 - **Header names are case-sensitive** and are not otherwise normalized beyond trimming spaces.
 - **Whole-file read.** The file is read into memory at once; there is no size limit in the parser.
 - **`org_id` and `upload_id` are unused.** They exist only to match INT-01; the parser cannot tag
@@ -448,8 +498,6 @@ on `57bb11e`, passed the Backend job with "296 passed" and "skipped tests: 0".
 - `WORK-03` — El-Farouk Omar — calls connectors on a schedule; has CONN-01 as a Prerequisite.
 - `API-03` — Ahmed Ibrahem — connector setup and CSV upload APIs; has CONN-01 as a Prerequisite.
   Pull request #18 was closed unmerged on 17 Oct 2026.
-- Unassigned — handle a UTF-8 byte-order mark and give a precise message for it. Needs an owner and
-  a Notion card.
 - Unassigned — commit the approved PROD-01 sample file with a test that parses it, to close the
   fourth Definition-of-Done line.
 - Unassigned — design `connectors/base.py` from the CSV and OAuth implementations, or remove the
@@ -464,6 +512,9 @@ on `57bb11e`, passed the Backend job with "296 passed" and "skipped tests: 0".
 - Pull request: [#1](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/1), branch
   `conn-01-csv-parser` → `main`, one commit `3ae8025`, 6 files, +507 / −0, merged
   2026-08-24 11:36:18 UTC, merge commit `3657dd8`
+- Post-merge correction: [#30](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/30),
+  branch `fix/conn-01-02-hardening` (UTF-8 byte-order mark, Step 6). This document was first added
+  in [#29](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/29)
 - Canonical contracts: [RawResponse and Canonical Handoff Contract](../contracts/raw-response-canonical-handoff.md)
 - ADRs: none govern the parser directly
 - Related technical documentation:
@@ -481,4 +532,4 @@ on `57bb11e`, passed the Backend job with "296 passed" and "skipped tests: 0".
   [32722360428](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32722360428),
   [32722706496](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32722706496),
   [38951435772](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/38951435772);
-  local re-run on 21 Oct 2026 (Section 14)
+  local re-run on 21 Oct 2026 (Section 14); pull request #30 CI (added in a later commit)

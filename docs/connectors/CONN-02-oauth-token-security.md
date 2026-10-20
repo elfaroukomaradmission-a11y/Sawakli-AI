@@ -7,7 +7,7 @@
 | Task | CONN-02 — Implement OAuth Token Security and Connection Health |
 | Layer | Connector |
 | Owner | Mohamed Hassan (reassigned from Youssef Halawa, the original assignee) |
-| Status | **Implemented** at the token boundary. Merged to `main` on 25 Aug 2026 in pull request #4. Real provider token exchange is not implemented (Section 15) |
+| Status | **Implemented** at the token boundary — merged to `main` on 25 Aug 2026 (pull request #4); corrected on 21 Oct 2026 (pull request #30). Real provider token exchange is not implemented (Section 15) |
 | Document type | Retroactive task document, written on 21 Oct 2026 for work merged before task documentation became mandatory |
 
 CONN-02 delivered the Connector layer's OAuth token boundary in `sawakli.connectors.oauth`:
@@ -41,7 +41,8 @@ Alembic. That schema remains DATA-01's deliverable (Step 6).
   [`connectors/oauth/repository.py`](../../apps/backend/src/sawakli/connectors/oauth/repository.py).
 - Package exports in [`connectors/oauth/__init__.py`](../../apps/backend/src/sawakli/connectors/oauth/__init__.py).
 - `CONNECTOR_TOKEN_ENCRYPTION_KEY` placeholder and instructions in [`.env.example`](../../.env.example).
-- 32 unit tests and 7 PostgreSQL integration tests (Section 13).
+- 32 unit tests and 7 PostgreSQL integration tests at delivery; 6 unit tests added by the October
+  correction (Section 13).
 - Work carried in the same pull request to unblock the repository: Alembic migrations
   `0001`–`0009`, [`db/migration_utils.py`](../../apps/backend/src/sawakli/db/migration_utils.py),
   [`db/tables.py`](../../apps/backend/src/sawakli/db/tables.py), the PEP 561 `py.typed` marker and
@@ -111,6 +112,10 @@ so one organization can connect two Google Ads accounts without their tokens ove
 other. A connection-status check on an unknown or expired source returns `connected=False` or
 `token_valid=False` instead of an error, so a status screen can show a "reconnect" prompt.
 
+Steps 1–6 are the original delivery (pull request #4). Step 7 records the post-merge corrections
+made in pull request #30: a refresh keeps the stored refresh token when the provider sends no
+new one, and the status check reports an undecryptable token as "reconnect" instead of raising.
+
 What is not yet possible: no merged code calls these functions, and no real provider exchanger
 exists. The boundary is implemented and tested with a test exchanger; end-to-end OAuth is not.
 
@@ -122,7 +127,7 @@ The criteria are the Definition of Done on the Notion card, quoted verbatim.
 |---|---|---|
 | Authorization codes are exchanged through Connector. | 3, 4 | PASS at the boundary — `store_oauth_token` routes the code through the injected `TokenExchanger` (`test_store_success_saves_token_and_returns_true`, `test_store_invalid_auth_code`, `test_store_provider_unreachable`; Section 14). NOT RUN — exchange with a real provider: no `TokenExchanger` implementation exists (CONN-03) and no merged caller exists (API-03) |
 | Token values are encrypted in canonical oauth_connections. | 1, 5 | PASS — the canonical table is `connector_tokens` (INT-01 §1.4; `oauth_connections` was the earlier Backend-report name). `test_tokens_are_actually_encrypted_at_rest` (unit) and `test_tokens_are_encrypted_at_rest_in_the_real_table` (PostgreSQL; PASS on 21 Oct 2026 and in `main` run 38951435772; NOT RUN in the August CI, Section 14) |
-| Expiry refresh and health/reauth state work safely. | 3, 4 | PASS for the tested behavior — seven refresh and status tests, including expired, missing and non-expiring tokens (Section 14). Two gaps are recorded in Section 15: a refresh that returns no new refresh token clears the stored one, and a key or data mismatch makes `check_connection_status` raise |
+| Expiry refresh and health/reauth state work safely. | 3, 4, 7 | PASS — refresh and status tests, including expired, missing and non-expiring tokens, a refresh response without a refresh token, two such refreshes in a row, and undecryptable stored tokens (Section 14). The two gaps found on 21 Oct 2026 were corrected in Step 7. Database errors still propagate by design (Section 8) |
 | No other layer can read plaintext token values. | 1, 3, 5 | Enforced by code ownership only: no public function returns a token. NOT RUN — no test asserts that another layer is refused. Database enforcement is not active: the `0007` grants restrict `connector_tokens` to `connector_role`, but every runtime process connects as the superuser ([ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md)) |
 
 ### Step 1 — Encrypt token values
@@ -234,6 +239,52 @@ The criteria are the Definition of Done on the Notion card, quoted verbatim.
   A downgrade was not part of that CI. The current CI runs an upgrade, downgrade, upgrade round
   trip, added later by QA-00.
 
+### Step 7 — Post-merge corrections (October 2026)
+
+- **What:** While this document was being written retroactively on 21 Oct 2026 (pull request
+  #29), two behavior gaps were found with synthetic keys and tokens:
+  1. **A refresh could erase the refresh token.** A provider's refresh response may omit the
+     refresh token. `refresh_token()` saved the response as-is, so the stored refresh token became
+     `NULL` and the next refresh returned `refresh_denied` ("needs to be set up again"), even though
+     the original refresh token was still valid. A user would have been asked to reconnect for no
+     reason.
+  2. **The status check could raise.** If the encryption key changed or the stored bytes were
+     altered or truncated, the repository's decrypt step raised `InvalidTag` or `ValueError`, and
+     `check_connection_status()` raised with it. INT-01 §2.7 says this function "never errors"; a
+     status screen should show "reconnect", not fail.
+
+  The same review also corrected four stale code comments (no behavior change).
+- **Where:** [`tokens.py`](../../apps/backend/src/sawakli/connectors/oauth/tokens.py),
+  `refresh_token()` and `check_connection_status()`; docstrings in `models.py`, `crypto.py` and
+  `tokens.py`; the `data_sources_table` comment in `db/tables.py`.
+- **How it works:**
+  1. In `refresh_token()` only, when the provider's response has no refresh token, the value saved
+     is the existing stored refresh token (built with `dataclasses.replace`). When the provider does
+     send a new refresh token, the new one is saved, so rotation still works. `store_oauth_token()`
+     is unchanged: on a first connection, "no refresh token" correctly means none was issued.
+  2. `check_connection_status()` now catches exactly the two exceptions that `decrypt_token` raises:
+     `InvalidTag` (wrong key or altered bytes) and `ValueError` (data too short to hold a nonce). In
+     that case it returns `connected=True, token_valid=False`, with `last_successful_call_at`
+     passed through: a row exists, but its token is unusable, so the user must reconnect. It logs
+     one warning that names only the `data_source_id` and the exception class. Database errors are
+     not caught: "never errors" covers token states, not infrastructure failure, and the caller owns
+     the connection and transaction.
+  3. Comments: the `TokenRepository` and `tokens.py` docstrings now name `PostgresTokenRepository`
+     instead of saying it will be added later; `decrypt_token` names `InvalidTag`; the
+     `check_connection_status` docstring describes the behavior above; the `data_sources_table`
+     comment no longer says `check_connection_status()` queries that table.
+
+  No public signature, return type or error kind changed.
+- **Testing:** New tests in `test_tokens.py`:
+  `test_refresh_without_new_refresh_token_keeps_existing_one`,
+  `test_two_refreshes_without_new_refresh_token_both_succeed`,
+  `test_status_wrong_key_is_connected_but_invalid_and_does_not_raise`,
+  `test_status_too_short_ciphertext_is_connected_but_invalid` and
+  `test_status_decryption_failure_passes_through_last_synced_at` failed on the unfixed code and
+  pass after the fix. `test_status_database_errors_still_propagate` records the database-error
+  boundary. Rotation is covered by the existing `test_refresh_success_updates_stored_token`.
+  Evidence: Section 14, "Post-merge corrections (21 Oct 2026)".
+
 ### Flow Diagram
 
 ```mermaid
@@ -282,12 +333,15 @@ flowchart LR
 - **Keying:** one `connector_tokens` row per `data_source_id`. Saving again replaces the row.
 - **Token validity:** `token_valid = expires_at is None or expires_at > now (UTC)`. A token with no
   known expiry counts as valid, because there is no evidence it has expired. A token that has
-  expired is still `connected=True` with `token_valid=False`.
+  expired is still `connected=True` with `token_valid=False`. A stored token that cannot be
+  decrypted is also `connected=True` with `token_valid=False` (Step 7).
+- **"Never errors" boundary:** `check_connection_status` never raises for a token state (missing,
+  expired or undecryptable). Database errors propagate by design.
 - **Missing values:** no row means not connected. A row without a refresh token cannot be
   refreshed; `refresh_token` returns `refresh_denied` and the user must reconnect.
-- **Refresh result:** the new `access_token`, `refresh_token` and `expires_at` from the provider
-  replace the stored values. If the provider's refresh response contains no refresh token, the
-  stored refresh token becomes `NULL` (Section 15).
+- **Refresh result:** the new `access_token` and `expires_at` from the provider replace the stored
+  values. A new refresh token replaces the stored one; if the refresh response contains no refresh
+  token, the existing one is kept (Step 7).
 - **Error mapping:** `InvalidAuthCodeError` → `invalid_auth_code`; `RefreshDeniedError`, no row or
   no refresh token → `refresh_denied`; `ProviderUnreachableError` → `provider_unreachable`
   (retryable). Other exceptions from an exchanger or repository are not caught.
@@ -342,7 +396,9 @@ def generate_encryption_key() -> str: ...
   commit.
 - **Errors raised, not returned:** `load_encryption_key` raises `EncryptionKeyError` for a
   missing, non-base64 or wrong-length key. Decryption with the wrong key or of altered data raises
-  `cryptography.exceptions.InvalidTag`. Database errors propagate from SQLAlchemy.
+  `cryptography.exceptions.InvalidTag`, and data too short to hold a nonce raises `ValueError`.
+  `check_connection_status` catches both (Step 7); `refresh_token` does not. Database errors
+  propagate from SQLAlchemy.
 - `encrypt_token` and `decrypt_token` are module functions in `crypto.py`, not package exports.
 
 ## 10. Data Ownership
@@ -378,7 +434,9 @@ def generate_encryption_key() -> str: ...
   contain the provider name and `data_source_id`, not token values.
 - **Encryption key:** read from `CONNECTOR_TOKEN_ENCRYPTION_KEY`; never hard-coded. Placeholder
   only in `.env.example`. A missing or malformed key fails fast with `EncryptionKeyError`. Changing
-  the key makes existing rows unreadable (`InvalidTag`); there is no key rotation or key ID.
+  the key makes existing rows unreadable (`InvalidTag`); there is no key rotation or key ID. The
+  status check then reports `token_valid=False` and logs only the `data_source_id` and exception
+  class (Step 7).
   [ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md) FU-07 records that Docker
   Compose passes the key to no process today and that the key goes to the API with API-03.
 - **Database permissions:** migration `0007` grants `connector_tokens` only to `connector_role`
@@ -401,18 +459,20 @@ def generate_encryption_key() -> str: ...
 | Zero values | N/A — no numeric inputs |
 | Insufficient data | Stored row without a refresh token: `refresh_denied`. Row without `expires_at`: `token_valid=True` |
 | Duplicate records | Upsert on `data_source_id` keeps one row |
-| Database failure | SQLAlchemy exceptions propagate to the caller; the caller owns the transaction |
+| Database failure | SQLAlchemy exceptions propagate to the caller, including from `check_connection_status`; the caller owns the transaction |
 | Provider or API failure | `ProviderUnreachableError` → `provider_unreachable` (retryable); `RefreshDeniedError` → `refresh_denied` (reconnect). Any other exchanger exception, such as a raw `TimeoutError`, propagates (observed on 21 Oct 2026) |
 | Timeout | No timeout is applied in this module. A real exchanger must apply one and raise `ProviderUnreachableError` |
 | Cancellation | N/A — calls are synchronous; no cancellation hook |
-| Wrong key or altered ciphertext | `decrypt_token` raises `InvalidTag`. `check_connection_status` also raises in this case, because the repository decrypts the row before the status is computed (observed on 21 Oct 2026) |
+| Wrong key or altered ciphertext | `decrypt_token` raises `InvalidTag` (`ValueError` if too short). `check_connection_status` returns `connected=True, token_valid=False` and logs a warning (Step 7; before 21 Oct 2026 it raised). `refresh_token` still raises; a new `store_oauth_token` overwrites the row and recovers |
+| Refresh response without a refresh token | The existing stored refresh token is kept, so later refreshes still work (Step 7; before 21 Oct 2026 it was cleared) |
 | Data source deleted | The `connector_tokens` row is deleted by `ON DELETE CASCADE` |
 
 ## 13. Testing
 
 ### Unit Tests
 
-No database or network; 32 tests in `tests/unit/connectors/oauth/`:
+No database or network; 38 tests in `tests/unit/connectors/oauth/` (32 from the original delivery,
+6 added in Step 7):
 
 - [`test_crypto.py`](../../apps/backend/tests/unit/connectors/oauth/test_crypto.py) (11): key
   loading succeeds and fails for missing, non-base64 and wrong-length keys; generated keys load;
@@ -421,10 +481,13 @@ No database or network; 32 tests in `tests/unit/connectors/oauth/`:
 - [`test_repository.py`](../../apps/backend/tests/unit/connectors/oauth/test_repository.py) (7):
   the in-memory repository stores only ciphertext, round-trips nullable fields, overwrites by
   `data_source_id`, and keeps data sources independent.
-- [`test_tokens.py`](../../apps/backend/tests/unit/connectors/oauth/test_tokens.py) (14): store
+- [`test_tokens.py`](../../apps/backend/tests/unit/connectors/oauth/test_tokens.py) (20): store
   success and both store errors; refresh success, no row, no refresh token, provider denial and
   provider outage; status for no row, valid, expired and non-expiring tokens; status does not raise
-  for an unknown data source; `last_synced_at` is passed through.
+  for an unknown data source; `last_synced_at` is passed through. Added in Step 7: a refresh without
+  a new refresh token keeps the old one, and two such refreshes in a row both succeed; status with a
+  wrong key or too-short stored data returns `connected=True, token_valid=False` without raising,
+  passes `last_synced_at` through, and logs no token material; database errors still propagate.
 
 ### Integration Tests
 
@@ -497,12 +560,57 @@ on `57bb11e` — PASS. Its Tests step shows
 `tests/integration/connectors/oauth/test_postgres_repository.py .......`, "296 passed" and
 "skipped tests: 0".
 
-### Code unchanged since delivery
+### Code unchanged from delivery until the October correction
 
-`git diff c4277d7 origin/main` on `connectors/oauth/`, `connectors/errors.py`, both connector test
+Before pull request #30, `git diff c4277d7 origin/main` on `connectors/oauth/`, `connectors/errors.py`, both connector test
 trees, `db/migration_utils.py` and migrations `0001`–`0009` is empty. `db/tables.py` has since
 gained tables from other tasks; its `connector_tokens` and `data_sources` definitions are
 unchanged.
+
+### Post-merge corrections (21 Oct 2026)
+
+Branch `fix/conn-01-02-hardening`; fix commits `783f43e` (refresh token) and `f2c1669` (status
+check), comment commit `3f9934a`, test commit `74c087b`; same environment as the re-run above.
+
+Before the fix, the new tests were run against the unfixed code:
+
+```text
+pytest tests/unit/connectors/oauth/test_tokens.py -k without_new_refresh_token
+FAILED test_refresh_without_new_refresh_token_keeps_existing_one
+  AssertionError: assert None == 'original-refresh'
+FAILED test_two_refreshes_without_new_refresh_token_both_succeed
+  second refresh returned ConnectorError(kind=refresh_denied,
+  message='No refresh token stored for data_source_id=...')
+2 failed
+
+pytest tests/unit/connectors/oauth/test_tokens.py -k "wrong_key or too_short or decryption"
+FAILED test_status_wrong_key_is_connected_but_invalid_and_does_not_raise
+  cryptography.exceptions.InvalidTag
+FAILED test_status_too_short_ciphertext_is_connected_but_invalid
+  ValueError: Encrypted blob is too short to contain a nonce.
+FAILED test_status_decryption_failure_passes_through_last_synced_at
+  cryptography.exceptions.InvalidTag
+3 failed
+```
+
+| Check | Result |
+|---|---|
+| New refresh-token tests before the fix | FAIL — 2 failed, for the reason above (expected) |
+| New status-check tests before the fix | FAIL — 3 failed, for the reason above (expected) |
+| `pytest tests/unit/connectors/oauth/test_tokens.py -v` after both fixes | PASS — 20 passed |
+| `ruff check .`, `ruff format --check .`, `mypy src` at `74c087b` | PASS — "All checks passed!", "160 files already formatted", "Success: no issues found in 90 source files" |
+| Full `pytest -rs` at `74c087b` against a throwaway `postgres:18` container prepared with `integration_harness.py fresh-db TEST_DATABASE_URL`, with the CI job's environment variables | PASS — 305 passed, 0 skipped, 0 failed |
+| Pull request #30 CI | NOT RUN — the pull request did not exist when this commit was written; result added in a later commit |
+
+The first full-suite run after the fixes had 1 failure: the log assertion in
+`test_status_wrong_key_is_connected_but_invalid_and_does_not_raise` saw an empty log, because
+database fixtures run Alembic in-process and Alembic's logging setup disables existing loggers.
+Commit `74c087b` re-enables the `tokens` logger for that test only; the status behavior itself
+passed in that run.
+
+`test_status_database_errors_still_propagate` was added with the status-check fix to record the
+database-error boundary. It was not part of the before-fix run; the unfixed code also let
+that error through, so the test would have passed there too.
 
 ## 15. Known Limitations
 
@@ -511,13 +619,12 @@ unchanged.
 - **No merged caller.** Nothing on `main` calls `store_oauth_token`, `refresh_token` or
   `check_connection_status`. The OAuth callback was in pull request #18 (API-03), which was closed
   unmerged on 17 Oct 2026.
-- **A refresh can drop the refresh token.** A provider's refresh response may contain no refresh
-  token (`ExchangedToken.refresh_token` is optional, `models.py:101-113`). `refresh_token` then
-  stores `NULL`, and the next refresh returns `refresh_denied` (observed on 21 Oct 2026 with a test
-  exchanger). Keeping the existing refresh token when none is returned would avoid this.
-- **`check_connection_status` can raise.** It does not raise for missing or expired tokens, but it
-  propagates `InvalidTag` when the key does not match the stored data, and database errors. INT-01
-  §2.7 says it "never errors".
+- **`check_connection_status` raises on database errors by design.** It never raises for a token
+  state (missing, expired or undecryptable), but database errors propagate to the caller, which
+  owns the connection and transaction.
+- **`refresh_token` raises on an undecryptable stored token.** `InvalidTag` or `ValueError` from the
+  repository is not mapped to a `ConnectorError`. The status check reports this state as
+  `token_valid=False`, and reconnecting through `store_oauth_token` overwrites the row.
 - **Database grants are not enforced at runtime.** All processes use the superuser identity
   ([ADR 0001](../adr/0001-runtime-boundaries-and-database-roles.md)); the integration tests also
   connect as the superuser and cannot prove the `connector_role` grants (ADR 0001 FU-09).
@@ -525,12 +632,6 @@ unchanged.
   Compose (ADR 0001 FU-07). There is no key rotation.
 - **Organization scope relies on the caller.** `connector_tokens` has no `organization_id`, and
   no cross-organization test exists for these functions.
-- **Stale comments in code.** The `TokenRepository` docstring (`models.py:133-137`) and the
-  `tokens.py` module docstring (`tokens.py:12-13`) still say the PostgreSQL repository will be
-  added later, although it exists. `decrypt_token`'s docstring (`crypto.py:81-84`) says decryption
-  failures raise `ValueError`, but they raise `InvalidTag`. The `data_sources_table` comment
-  (`db/tables.py:62-65`) says it is a query target for `check_connection_status()`, which does not
-  query it.
 - **The `connector_tokens` table comment still reads "PROVISIONAL"** (migration `0005`), although
   INT-01 v1.1 records the token-storage ownership and `connector_tokens` schema questions as
   decided.
@@ -544,11 +645,11 @@ unchanged.
 - `WORK-03` — El-Farouk Omar — schedule `refresh_token` before expiry.
 - ADR 0001 FU-06 and FU-09 — runtime logins and tests that prove `connector_tokens` grants
   (owners as listed in the ADR).
-- Unassigned — keep the stored refresh token when a refresh response has none, and make
-  `check_connection_status` report decryption failure as not valid instead of raising. Behavior
-  changes; need an owner and a Notion card.
-- Unassigned — correct the stale docstrings and the "PROVISIONAL" table comment listed in
-  Section 15.
+- Unassigned — the "PROVISIONAL" comment on `connector_tokens` (migration `0005`). Applied
+  migrations are not edited, and the schema belongs to DATA-01, so any change needs the DATA-01
+  owner.
+- Unassigned — decide whether `refresh_token` should map an undecryptable stored token to a
+  `ConnectorError` (Section 15). Changing it is a contract-visible behavior change.
 
 ## 17. References and Evidence
 
@@ -562,6 +663,9 @@ unchanged.
   `75d41e0` "CONN-02: wire real Postgres repository, fix nullable fields from Ahmed's actual
   schema" (16:27:26 UTC) and `7d2d08a` "CONN-02: document CONNECTOR_TOKEN_ENCRYPTION_KEY in
   .env.example" (16:33:28 UTC)
+- Post-merge correction: [#30](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/30),
+  branch `fix/conn-01-02-hardening` (Step 7). This document was first added in
+  [#29](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/29)
 - Canonical contracts: [RawResponse and Canonical Handoff Contract](../contracts/raw-response-canonical-handoff.md);
   `INT-01_Canonical_MVP_Contract_Pack.pdf` (v1.0, §1.4, §2.7, §3) and
   `INT-01_Canonical_MVP_Contract_Pack_v1.1.pdf` (page 12, corrections 1–4)
@@ -576,4 +680,4 @@ unchanged.
   [32873121364](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32873121364),
   [32873316056](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32873316056),
   [38951435772](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/38951435772);
-  local re-run on 21 Oct 2026 (Section 14)
+  local re-run on 21 Oct 2026 (Section 14); pull request #30 CI (added in a later commit)
