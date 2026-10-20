@@ -223,3 +223,41 @@ def test_non_numeric_value_is_warned_and_skipped():
     assert result.row_count == 1
     assert "Row 2" in result.parse_warnings[0]
     assert "spend" in result.parse_warnings[0]
+
+
+BOM_ROWS = (
+    "2024-01-15,Spring Sale,meta,100.50,1000,50,5,250.00,300,20\n"
+    "2024-01-16,Summer Blast,google,200.00,2000,80,10,500.00,400,30\n"
+)
+
+
+def test_utf8_bom_bytes_parse_like_plain_utf8():
+    # "UTF-8 with BOM" spreadsheet export: the BOM must not stick to "date".
+    data = b"\xef\xbb\xbf" + (HEADER + "\n" + BOM_ROWS).encode("utf-8")
+
+    result = parse_csv_upload(io.BytesIO(data), ORG_ID, UPLOAD_ID)
+
+    assert isinstance(result, RawResponse)
+    assert result.row_count == 2
+    assert result.parse_warnings == []
+    assert result.parsed_rows[0]["date"] == "2024-01-15"
+
+
+def test_utf8_bom_text_stream_parses_like_plain_text():
+    result = parse_csv_upload(io.StringIO("﻿" + HEADER + "\n" + BOM_ROWS), ORG_ID, UPLOAD_ID)
+
+    assert isinstance(result, RawResponse)
+    assert result.row_count == 2
+    assert result.parse_warnings == []
+
+
+def test_utf8_bom_does_not_hide_a_real_missing_column():
+    bad_header = "date,campaign_name,platform,spend,impressions,clicks,conversions,sessions,bounces"
+    data = b"\xef\xbb\xbf" + (bad_header + "\n2024-01-15,A,meta,1,1,1,1,1,1\n").encode("utf-8")
+
+    result = parse_csv_upload(io.BytesIO(data), ORG_ID, UPLOAD_ID)
+
+    assert isinstance(result, ConnectorError)
+    assert result.kind == ParseErrorKind.INVALID_HEADER
+    assert "revenue" in result.message
+    assert "date" not in result.message

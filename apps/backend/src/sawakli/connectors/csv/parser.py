@@ -68,7 +68,8 @@ def parse_csv_upload(
 
     if isinstance(content, bytes):
         try:
-            text = content.decode("utf-8")
+            # utf-8-sig drops one leading byte-order mark ("UTF-8 with BOM" exports).
+            text = content.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
             return ConnectorError(
                 kind=ParseErrorKind.UNREADABLE_ENCODING,
@@ -80,7 +81,7 @@ def parse_csv_upload(
                 retryable=False,
             )
     else:
-        text = content
+        text = content.removeprefix("﻿")
 
     # Normalize line endings so csv.reader over an in-memory string doesn't
     # produce spurious blank rows from bare "\r".
