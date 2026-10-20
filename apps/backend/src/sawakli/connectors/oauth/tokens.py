@@ -15,9 +15,12 @@ TokenExchanger get wired in once DATA-01's data_sources table lands.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
+
+from cryptography.exceptions import InvalidTag
 
 from ..errors import ConnectorError
 from .models import (
@@ -32,6 +35,8 @@ from .models import (
     TokenExchanger,
     TokenRepository,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def store_oauth_token(
@@ -145,7 +150,20 @@ def check_connection_status(
     data_sources access of its own, so it doesn't reach for that table
     directly.
     """
-    stored = repo.get(data_source_id)
+    try:
+        stored = repo.get(data_source_id)
+    except (InvalidTag, ValueError) as exc:
+        # decrypt_token(): InvalidTag for a wrong key or altered bytes, ValueError for
+        # a blob too short to hold a nonce. A row exists but is unusable: reconnect.
+        # Database errors are not caught; the caller owns the transaction.
+        logger.warning(
+            "Stored token for data_source_id=%s could not be decrypted (%s)",
+            data_source_id,
+            type(exc).__name__,
+        )
+        return ConnectionStatus(
+            connected=True, token_valid=False, last_successful_call_at=last_synced_at
+        )
     if stored is None:
         return ConnectionStatus(
             connected=False, token_valid=False, last_successful_call_at=last_synced_at

@@ -2,7 +2,10 @@ import base64
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from sawakli.connectors.errors import ConnectorError
+from sawakli.connectors.oauth.crypto import decrypt_token, encrypt_token
 from sawakli.connectors.oauth.models import (
     ExchangedToken,
     InvalidAuthCodeError,
@@ -349,3 +352,67 @@ def test_two_refreshes_without_new_refresh_token_both_succeed():
     assert first == FUTURE
     assert second == FUTURE
     assert repo.get(DATA_SOURCE_ID).refresh_token == "original-refresh"
+
+
+class UndecryptableRepository:
+    """Repository whose stored row can't be decrypted, the way a real
+    repository behaves after a key change or byte corruption."""
+
+    def __init__(self, blob: bytes, key: bytes) -> None:
+        self._blob = blob
+        self._key = key
+
+    def get(self, data_source_id):
+        decrypt_token(self._blob, self._key)  # raises before a token is built
+        raise AssertionError("decryption unexpectedly succeeded")
+
+    def save(self, token):
+        raise AssertionError("status check must not write")
+
+
+OTHER_KEY = base64.b64decode(base64.b64encode(b"o" * 32))
+
+
+def test_status_wrong_key_is_connected_but_invalid_and_does_not_raise(caplog):
+    repo = UndecryptableRepository(encrypt_token("synthetic-access", KEY), OTHER_KEY)
+
+    status = check_connection_status(DATA_SOURCE_ID, repo=repo)
+
+    assert status.connected is True
+    assert status.token_valid is False
+    # The warning names the source and exception class only, never token material.
+    assert str(DATA_SOURCE_ID) in caplog.text
+    assert "InvalidTag" in caplog.text
+    assert "synthetic-access" not in caplog.text
+
+
+def test_status_too_short_ciphertext_is_connected_but_invalid():
+    repo = UndecryptableRepository(b"short", KEY)
+
+    status = check_connection_status(DATA_SOURCE_ID, repo=repo)
+
+    assert status.connected is True
+    assert status.token_valid is False
+
+
+def test_status_decryption_failure_passes_through_last_synced_at():
+    repo = UndecryptableRepository(encrypt_token("synthetic-access", KEY), OTHER_KEY)
+    synced = datetime(2026, 10, 20, tzinfo=UTC)
+
+    status = check_connection_status(DATA_SOURCE_ID, repo=repo, last_synced_at=synced)
+
+    assert status.last_successful_call_at == synced
+
+
+def test_status_database_errors_still_propagate():
+    """'Never errors' covers token states, not infrastructure failure."""
+
+    class BrokenRepository:
+        def get(self, data_source_id):
+            raise RuntimeError("database unavailable")
+
+        def save(self, token):
+            raise AssertionError("status check must not write")
+
+    with pytest.raises(RuntimeError):
+        check_connection_status(DATA_SOURCE_ID, repo=BrokenRepository())
