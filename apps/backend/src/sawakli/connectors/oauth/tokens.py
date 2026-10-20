@@ -9,8 +9,8 @@ code, it never sees a token.
 These functions take their dependencies (repo, exchanger) as arguments
 rather than reaching for a global connection, so none of this needs a live
 Postgres connector_tokens table or a real network call to a provider to be
-fully unit tested. A Postgres-backed TokenRepository and an HTTP-backed
-TokenExchanger get wired in once DATA-01's data_sources table lands.
+fully unit tested. PostgresTokenRepository (repository.py) is the real
+TokenRepository; no HTTP-backed TokenExchanger exists yet (CONN-03).
 """
 
 from __future__ import annotations
@@ -141,8 +141,12 @@ def check_connection_status(
 ) -> ConnectionStatus:
     """Report connection health without ever exposing the token itself.
 
-    Never errors (INT-01 §2.7) — a missing or expired token just produces
-    connected=False / token_valid=False.
+    Never errors on token state (INT-01 §2.7): a missing token gives
+    connected=False / token_valid=False; an expired token, or a stored token
+    that can't be decrypted (key changed, bytes altered or truncated), gives
+    connected=True / token_valid=False, so the user is asked to reconnect.
+    Database errors are not token states and propagate to the caller, which
+    owns the connection and transaction.
 
     `last_synced_at` comes from data_sources.last_synced_at (Data
     Layer-owned, but readable by Connector Layer per INT-01's Ownership &
