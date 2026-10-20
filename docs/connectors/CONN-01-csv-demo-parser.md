@@ -476,7 +476,7 @@ FAILED test_utf8_bom_does_not_hide_a_real_missing_column
 | `pytest tests/unit/connectors/csv/test_parser.py -v` after the fix | PASS — 17 passed |
 | `ruff check .`, `ruff format --check .`, `mypy src` at `74c087b` | PASS — "All checks passed!", "160 files already formatted", "Success: no issues found in 90 source files" |
 | Full `pytest -rs` at `74c087b` against a throwaway `postgres:18` container prepared with `integration_harness.py fresh-db TEST_DATABASE_URL`, with the CI job's environment variables | PASS — 305 passed, 0 skipped, 0 failed |
-| Pull request #30 CI | NOT RUN — the pull request did not exist when this commit was written; result added in a later commit |
+| Pull request #30 CI, run [39515242034](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/39515242034) on commit `219515e` | PASS — Documentation governance, Contracts, Backend ("305 passed", "skipped tests: 0"), Frontend and Integration all `success` |
 
 ## 15. Known Limitations
 
@@ -532,4 +532,4 @@ FAILED test_utf8_bom_does_not_hide_a_real_missing_column
   [32722360428](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32722360428),
   [32722706496](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32722706496),
   [38951435772](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/38951435772);
-  local re-run on 21 Oct 2026 (Section 14); pull request #30 CI (added in a later commit)
+  local re-run on 21 Oct 2026 (Section 14); pull request #30 CI run [39515242034](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/39515242034) (commit `219515e`)

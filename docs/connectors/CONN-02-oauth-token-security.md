@@ -600,7 +600,7 @@ FAILED test_status_decryption_failure_passes_through_last_synced_at
 | `pytest tests/unit/connectors/oauth/test_tokens.py -v` after both fixes | PASS — 20 passed |
 | `ruff check .`, `ruff format --check .`, `mypy src` at `74c087b` | PASS — "All checks passed!", "160 files already formatted", "Success: no issues found in 90 source files" |
 | Full `pytest -rs` at `74c087b` against a throwaway `postgres:18` container prepared with `integration_harness.py fresh-db TEST_DATABASE_URL`, with the CI job's environment variables | PASS — 305 passed, 0 skipped, 0 failed |
-| Pull request #30 CI | NOT RUN — the pull request did not exist when this commit was written; result added in a later commit |
+| Pull request #30 CI, run [39515242034](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/39515242034) on commit `219515e` | PASS — Documentation governance, Contracts, Backend ("305 passed", "skipped tests: 0"), Frontend and Integration all `success` |
 
 The first full-suite run after the fixes had 1 failure: the log assertion in
 `test_status_wrong_key_is_connected_but_invalid_and_does_not_raise` saw an empty log, because
@@ -680,4 +680,4 @@ that error through, so the test would have passed there too.
   [32873121364](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32873121364),
   [32873316056](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/32873316056),
   [38951435772](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/38951435772);
-  local re-run on 21 Oct 2026 (Section 14); pull request #30 CI (added in a later commit)
+  local re-run on 21 Oct 2026 (Section 14); pull request #30 CI run [39515242034](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/39515242034) (commit `219515e`)
