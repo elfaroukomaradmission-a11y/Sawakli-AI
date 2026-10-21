@@ -424,7 +424,15 @@ Results:
   in a document that is new at the base). This document passes. It is fixed either by updating #22
   or by converting that document.
 - Implementation verified on commit `0f8b3fe`.
-- CI: **NOT RUN** — the pull request is not opened yet.
+- CI on [PR #31](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/31), workflow "Sawakli AI CI" (`pull_request`), run
+  [39651683108](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/39651683108), head `73a23cc`. Results as read from the PR page by
+  Mohamed Hassan; this session could not read the team repository's Actions.
+  - Documentation governance: **FAIL**. Its only failure is PR #22's
+    `docs/ui/UI-02-ui-foundation-and-api-client.md` (missing 17-section headings); this document passes.
+  - Contracts: **PASS**
+  - Backend: **PASS**
+  - Frontend: **PASS**
+  - Integration: **PASS**
 
 ## 15. Known Limitations
 
@@ -473,11 +481,12 @@ Results:
 ## 17. References and Evidence
 
 - Notion task: UI-04 — Build Dashboard KPI Cards and Campaign Table.
-- Pull request: to be opened from `mohamedhassan420:feature/UI-04-dashboard-kpis-campaign-table`
-  (stacked on PR #22).
+- Pull request: [#31](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/31), from
+  `mohamedhassan420:feature/UI-04-dashboard-kpis-campaign-table` (stacked on PR #22; merge #22 first).
 - Canonical contracts: `tests/contracts/canonical.json` (entity `campaigns`); PROD-01 §2 KPI set.
 - ADRs: N/A — no architectural change. ARCH-06 (accepted decision record) governs the client and
   state conventions.
 - Related technical documentation: [API-02](../api/API-02-dashboard-endpoints.md),
   [release checklist](../testing/release-checklist.md).
-- Test or CI evidence: Section 14 and the pull request description.
+- Test or CI evidence: Section 14, the pull request description, and CI run
+  [39651683108](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/39651683108).
