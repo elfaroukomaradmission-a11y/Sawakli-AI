@@ -130,11 +130,9 @@ class ConnectionStatus:
 class TokenRepository(Protocol):
     """The storage boundary connector_tokens sits behind.
 
-    A real SQLAlchemy-backed implementation is added once DATA-01's
-    data_sources table (and this table's own Alembic migration) exist in
-    main — deliberately deferred the same way CONN-01 left base.py
-    unbuilt. InMemoryTokenRepository (repository.py) stands in for it now,
-    for tests and as a concrete reference for the eventual real one.
+    Implemented by PostgresTokenRepository (repository.py, against the real
+    connector_tokens table) and by InMemoryTokenRepository, the test double
+    that follows the same encrypt-on-save / decrypt-on-get pattern.
     """
 
     def get(self, data_source_id: UUID) -> StoredToken | None: ...

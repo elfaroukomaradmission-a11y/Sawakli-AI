@@ -78,10 +78,10 @@ def encrypt_token(plaintext: str, key: bytes) -> bytes:
 def decrypt_token(blob: bytes, key: bytes) -> str:
     """Reverse of encrypt_token().
 
-    Raises ValueError if the blob is too short to contain a nonce, or if
-    decryption fails (wrong key, or the ciphertext was tampered with —
-    AES-GCM authenticates the ciphertext, so corruption is detected, not
-    silently accepted).
+    Raises ValueError if the blob is too short to contain a nonce, and
+    cryptography.exceptions.InvalidTag if decryption fails (wrong key, or the
+    ciphertext was tampered with — AES-GCM authenticates the ciphertext, so
+    corruption is detected, not silently accepted).
     """
     if len(blob) < _NONCE_SIZE_BYTES:
         raise ValueError("Encrypted blob is too short to contain a nonce.")

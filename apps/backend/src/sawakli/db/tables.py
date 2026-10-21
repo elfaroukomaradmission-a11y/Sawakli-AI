@@ -61,8 +61,8 @@ sync_status_enum = sa.Enum(
 # ------------------------------------------------------------------------------
 # data_sources — Backend-owned (creates the row); Data Layer updates status
 # fields only. Connector Layer has read-only access (INT-01 Ownership &
-# Access Matrix) — used here only as a query target for check_connection_status(),
-# never written to by this package.
+# Access Matrix). Not queried by the connectors package today (check_connection_status()
+# receives last_synced_at from its caller); never written to by this package.
 # ------------------------------------------------------------------------------
 data_sources_table = sa.Table(
     "data_sources",
