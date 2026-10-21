@@ -3,6 +3,9 @@
   "description": "Sawakli AI canonical contract — single source of truth derived from INT-01 and DATA-01 SQL migrations. Every layer (DB, Backend, UI, AI) must match these definitions.",
   "version": "1.0.0",
   "enums": {
+    "provider_enum": ["googleads", "metaads", "googleanalytics", "csv_demo"],
+    "data_source_status_enum": ["connected", "disconnected", "syncing", "failed", "stale", "demo_data"],
+    "sync_status_enum": ["pending", "running", "success", "failed"],
     "platform_enum": ["meta", "google"],
     "campaign_status_enum": ["active", "paused", "removed", "unknown"],
     "job_status_enum": ["PENDING", "RUNNING", "SUCCESS", "FAILED", "CANCELLED", "PARTIAL_SUCCESS"],
@@ -31,6 +34,39 @@
         "hashed_password": { "type": "varchar", "nullable": false, "ui_excluded": true },
         "name": { "type": "varchar", "nullable": false },
         "created_at": { "type": "timestamp", "nullable": false, "ui_excluded": true }
+      }
+    },
+    "data_sources": {
+      "source": "002_backend_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "provider": { "type": "provider_enum", "nullable": false },
+        "status": { "type": "data_source_status_enum", "nullable": false },
+        "sync_status": { "type": "sync_status_enum", "nullable": true },
+        "last_synced_at": { "type": "timestamp", "nullable": true },
+        "last_error": { "type": "text", "nullable": true }
+      },
+      "ownership": {
+        "writer": "Data",
+        "connector_access": "read-only",
+        "freshness_meaning": "most recent pull successfully persisted into canonical tables"
+      }
+    },
+    "raw_api_responses": {
+      "source": "003_data_layer_tables.sql",
+      "fields": {
+        "id": { "type": "uuid", "nullable": false },
+        "data_source_id": { "type": "uuid", "nullable": false },
+        "provider": { "type": "provider_enum", "nullable": false },
+        "endpoint": { "type": "text", "nullable": false },
+        "payload": { "type": "jsonb", "nullable": true },
+        "fetched_at": { "type": "timestamp", "nullable": false }
+      },
+      "semantics": {
+        "immutable": true,
+        "canonical_deduplication": "not applicable; retain each accepted pull",
+        "credentials_allowed": false
       }
     },
     "campaigns": {

@@ -9,14 +9,18 @@ code, it never sees a token.
 These functions take their dependencies (repo, exchanger) as arguments
 rather than reaching for a global connection, so none of this needs a live
 Postgres connector_tokens table or a real network call to a provider to be
-fully unit tested. A Postgres-backed TokenRepository and an HTTP-backed
-TokenExchanger get wired in once DATA-01's data_sources table lands.
+fully unit tested. PostgresTokenRepository (repository.py) is the real
+TokenRepository; no HTTP-backed TokenExchanger exists yet (CONN-03).
 """
 
 from __future__ import annotations
 
+import logging
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
+
+from cryptography.exceptions import InvalidTag
 
 from ..errors import ConnectorError
 from .models import (
@@ -31,6 +35,8 @@ from .models import (
     TokenExchanger,
     TokenRepository,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def store_oauth_token(
@@ -119,6 +125,10 @@ def refresh_token(
             retryable=True,
         )
 
+    # A refresh response may omit the refresh token; the stored one is still
+    # valid, so keep it. A new one (rotation) replaces it.
+    if exchanged.refresh_token is None:
+        exchanged = replace(exchanged, refresh_token=existing.refresh_token)
     _save_exchanged_token(data_source_id, provider, exchanged, repo=repo)
     return exchanged.expires_at
 
@@ -131,8 +141,12 @@ def check_connection_status(
 ) -> ConnectionStatus:
     """Report connection health without ever exposing the token itself.
 
-    Never errors (INT-01 §2.7) — a missing or expired token just produces
-    connected=False / token_valid=False.
+    Never errors on token state (INT-01 §2.7): a missing token gives
+    connected=False / token_valid=False; an expired token, or a stored token
+    that can't be decrypted (key changed, bytes altered or truncated), gives
+    connected=True / token_valid=False, so the user is asked to reconnect.
+    Database errors are not token states and propagate to the caller, which
+    owns the connection and transaction.
 
     `last_synced_at` comes from data_sources.last_synced_at (Data
     Layer-owned, but readable by Connector Layer per INT-01's Ownership &
@@ -140,7 +154,20 @@ def check_connection_status(
     data_sources access of its own, so it doesn't reach for that table
     directly.
     """
-    stored = repo.get(data_source_id)
+    try:
+        stored = repo.get(data_source_id)
+    except (InvalidTag, ValueError) as exc:
+        # decrypt_token(): InvalidTag for a wrong key or altered bytes, ValueError for
+        # a blob too short to hold a nonce. A row exists but is unusable: reconnect.
+        # Database errors are not caught; the caller owns the transaction.
+        logger.warning(
+            "Stored token for data_source_id=%s could not be decrypted (%s)",
+            data_source_id,
+            type(exc).__name__,
+        )
+        return ConnectionStatus(
+            connected=True, token_valid=False, last_successful_call_at=last_synced_at
+        )
     if stored is None:
         return ConnectionStatus(
             connected=False, token_valid=False, last_successful_call_at=last_synced_at

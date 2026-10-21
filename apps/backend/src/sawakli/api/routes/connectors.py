@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import json
 import logging
 from datetime import UTC, datetime
 from typing import Annotated, Any
@@ -15,8 +14,7 @@ from sqlalchemy.orm import Session
 from sawakli.api.deps import AuthContext, get_auth_context
 from sawakli.connectors.csv import RawResponse, parse_csv_upload
 from sawakli.connectors.errors import ConnectorError
-from sawakli.data.normalization.pipeline import normalize_and_upsert_batch
-from sawakli.data.staging.adapters import staged_row_from_csv_dict
+from sawakli.data.ingestion import ingest_csv_upload
 from sawakli.db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -130,33 +128,15 @@ def upload_csv(
 
     synced_at = datetime.now(UTC).replace(tzinfo=None)
     try:
-        db.execute(
-            text(
-                "INSERT INTO raw_api_responses "
-                "(id, data_source_id, provider, endpoint, payload, fetched_at) "
-                "VALUES (:id, :source_id, 'csv_demo', :endpoint, "
-                "CAST(:payload AS jsonb), :fetched_at)"
-            ),
-            {
-                "id": upload_id,
-                "source_id": data_source_id,
-                "endpoint": f"csv://upload/{file.filename or 'upload.csv'}",
-                "payload": json.dumps({"csv": content.decode("utf-8")}),
-                "fetched_at": synced_at,
-            },
-        )
-        staged_rows = [
-            staged_row_from_csv_dict(auth.organization.id, data_source_id, row)
-            for row in result.parsed_rows
-        ]
-        normalize_and_upsert_batch(db, staged_rows)
-        db.execute(
-            text(
-                "UPDATE data_sources SET status = 'demo_data', sync_status = 'success', "
-                "last_synced_at = :synced_at, last_error = NULL "
-                "WHERE id = :id AND organization_id = :organization_id"
-            ),
-            {"id": data_source_id, "organization_id": auth.organization.id, "synced_at": synced_at},
+        ingest_result = ingest_csv_upload(
+            db=db,
+            raw_response=result,
+            organization_id=auth.organization.id,
+            data_source_id=data_source_id,
+            upload_id=upload_id,
+            endpoint=f"csv://upload/{file.filename or 'upload.csv'}",
+            raw_payload={"csv": content.decode("utf-8")},
+            synced_at=synced_at,
         )
         db.commit()
     except Exception:
@@ -174,9 +154,9 @@ def upload_csv(
 
     return CsvUploadResponse(
         data_source_id=data_source_id,
-        row_count=result.row_count,
+        row_count=ingest_result.row_count,
         parsed_rows=result.parsed_rows,
-        parse_warnings=result.parse_warnings,
+        parse_warnings=ingest_result.parse_warnings,
         sync_status="success",
         last_synced_at=synced_at,
     )

@@ -3,8 +3,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from sawakli.api.routes import auth, campaigns
 from sawakli.api.routes.analysis import router as analysis_router
-from sawakli.api.routes.auth import router as auth_router
 from sawakli.api.routes.connectors import router as connectors_router
 from sawakli.api.routes.jobs import router as jobs_router
 
@@ -25,8 +25,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+app.include_router(auth.router)
+app.include_router(campaigns.router)
 
-app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(connectors_router, prefix="/api/connectors", tags=["connectors"])
 app.include_router(jobs_router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(analysis_router, prefix="/api/analysis", tags=["analysis"])
@@ -35,3 +36,6 @@ app.include_router(analysis_router, prefix="/api/analysis", tags=["analysis"])
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# Running Command: uv run uvicorn sawakli.api.main:app --reload --port 8000

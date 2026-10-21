@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -21,7 +21,7 @@ from sawakli.db.models.organization_member import OrganizationMember
 from sawakli.db.models.user import User
 from sawakli.db.session import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 _INVALID_CREDENTIALS = "Invalid email or password"
 _DEFAULT_PLAN = "free"
@@ -101,10 +101,10 @@ def login(payload: LoginRequest, db: DbSession) -> LoginResponse:
 @router.get("/me", response_model=MeResponse)
 def read_me(
     auth: CurrentAuth,
-    organization_id: Annotated[str | None, Query()] = None,
+    # organization_id: Annotated[str | None, Query()] = None,
 ) -> MeResponse:
     """Return the authenticated user and org from the token, never from the query string."""
-    _ = organization_id
+    # _ = organization_id
     return MeResponse(
         user=UserPublic.model_validate(auth.user),
         organization=OrganizationPublic.model_validate(auth.organization),

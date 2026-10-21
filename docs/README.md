@@ -17,6 +17,14 @@ Important technical information must be maintained here, not only in Notion or a
 - [Documentation standard](DOCUMENTATION_STANDARD.md)
 - [Technical task template](templates/TASK_DOCUMENTATION_TEMPLATE.md)
 - [AI-01 feature pipeline](ai/AI-01-feature-pipeline.md)
+- [AI-02 anomaly detection](ai/AI-02-anomaly-detection.md)
+- [AI-02 seeded reference benchmark](testing/AI-02-seeded-benchmark.md)
+- [ADR 0001 — Runtime boundaries and database roles](adr/0001-runtime-boundaries-and-database-roles.md)
+- [ARCH-01 runtime boundaries and database roles](architecture/ARCH-01-runtime-boundaries-and-database-roles.md)
+- [QA-00 contract validators and integration harness](testing/QA-00-contract-validators-and-integration-harness.md)
+- [CONN-01 connector package and CSV/demo parser](connectors/CONN-01-csv-demo-parser.md)
+- [CONN-02 OAuth token security and connection health](connectors/CONN-02-oauth-token-security.md)
+- [Release and demo checklist](testing/release-checklist.md)
 
 ## Categories
 
