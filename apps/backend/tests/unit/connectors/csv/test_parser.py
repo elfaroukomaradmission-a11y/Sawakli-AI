@@ -244,7 +244,7 @@ def test_utf8_bom_bytes_parse_like_plain_utf8():
 
 
 def test_utf8_bom_text_stream_parses_like_plain_text():
-    result = parse_csv_upload(io.StringIO("﻿" + HEADER + "\n" + BOM_ROWS), ORG_ID, UPLOAD_ID)
+    result = parse_csv_upload(io.StringIO("\ufeff" + HEADER + "\n" + BOM_ROWS), ORG_ID, UPLOAD_ID)
 
     assert isinstance(result, RawResponse)
     assert result.row_count == 2

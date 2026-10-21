@@ -81,7 +81,7 @@ def parse_csv_upload(
                 retryable=False,
             )
     else:
-        text = content.removeprefix("﻿")
+        text = content.removeprefix("\ufeff")
 
     # Normalize line endings so csv.reader over an in-memory string doesn't
     # produce spurious blank rows from bare "\r".
