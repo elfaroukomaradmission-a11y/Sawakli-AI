@@ -8,9 +8,7 @@ export type {
   Campaign,
   CampaignPlatform,
   CampaignStatus,
-  HealthStatus,
-  TimeSeriesPoint,
-  CampaignDetails,
+  DailyMetric,
 } from './campaign'
 export type { Anomaly, AnomalySeverity, AnomalyDirection } from './anomaly'
 export type {
