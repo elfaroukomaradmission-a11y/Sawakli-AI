@@ -261,6 +261,7 @@ def test_invalid_simulation_batch_is_rejected(mutation):
         {"status": "SUCCESS", "retryable": True},
         {"status": "FAILED", "error_code": None},
         {"status": "CANCELLED", "error_code": None},
+        {"status": "FAILED", "error_code": "invalid_input", "retryable": True},
     ],
 )
 def test_inconsistent_outcomes_are_rejected(change):

@@ -194,7 +194,7 @@ ADR 0001; these unit tests cannot prove database-level secret isolation.
 | Subcritical/equal-value anomaly evidence | No signal |
 | Unknown/insufficient metric evidence | ValidationError or ContractError |
 | Zero simulation denominator | Required unavailable marker and zero sentinel |
-| Cancellation/failure | Typed outcome; no partial output publication in v1 |
+| Cancellation/failure | Typed outcome; invalid input is never retryable; no partial publication in v1 |
 | DB/provider failure or timeout | No such IO in helpers; future lifecycle defined in contract |
 
 ## 13. Testing
@@ -204,7 +204,10 @@ direction, exact threshold, valid/invalid forecasts, simulator coverage/markers 
 identity-safe terminal mapping. Existing feature engineering and forecasting are reused.
 
 Contract tests validate synthetic linked rows against canonical fields/types/enums and
-reject nine injected corruptions. Existing QA-00 negative tests remain active.
+reject 27 injected corruptions, including impossible dates, unknown fields/warnings,
+nonboolean flags, duplicate scenarios, missing evidence and lost unavailable-ratio markers.
+The publication review reproduced five invalid fixtures being accepted before the fix;
+the CLI now rejects each. Existing QA-00 negative tests remain active.
 
 Production DB concurrency, cancellation races and retry idempotency tests are required
 for AI-06/WORK-04 adoption, not claimed as executed by this architecture task.

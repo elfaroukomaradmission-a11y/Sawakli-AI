@@ -78,6 +78,8 @@ class PipelineOutcome(ContractModel):
             raise ValueError("CANCELLED requires cancelled error_code")
         if self.status != RunStatus.FAILED and self.retryable:
             raise ValueError("only FAILED may be retryable")
+        if self.error_code == "invalid_input" and self.retryable:
+            raise ValueError("invalid input cannot be retried unchanged")
         if self.status != RunStatus.SUCCESS and self.campaigns_analyzed:
             raise ValueError("failed/cancelled whole-run publication has no analyzed campaigns")
         return self
