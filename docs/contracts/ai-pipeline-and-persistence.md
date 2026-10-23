@@ -148,6 +148,27 @@ depend on the orchestrator. FUT-05 arbitrary simulation requests remain out of s
 
 ## 5. Transactions, retry and cancellation
 
+The Worker control boundary is `request_job_cancellation(organization_id, job_id)
+-> JobStatus`: an authorized in-process Worker control action locks that tenant's job,
+returns its completed status if publication already won, otherwise marks an eligible
+PENDING/RUNNING job CANCELLED. It supplies the cancellation signal observed by AI.
+There is no new API-to-Worker network call or human-facing cancellation route in v1.
+An AI-facing cancellation facade, if used for ARCH-05, delegates to this injected
+Worker-owned action; it must not make AI another writer of jobs or import Worker code.
+Real control wiring belongs to WORK-04; the boolean CancellationCheck is implemented
+here as the typed observation boundary, not as a working cancellation command.
+
+| model_runs transition | Rule |
+|---|---|
+| Absent -> RUNNING | AI-06 creates the reserved ID after checking the job |
+| RUNNING -> SUCCESS / FAILED / CANCELLED | Finalize publication, failure or cancellation |
+| FAILED -> RUNNING | Only an eligible Worker retry claim; keep started_at, clear completed_at/error_message and reset campaigns_analyzed |
+| SUCCESS -> SUCCESS | Read-only replay; never insert output again |
+| CANCELLED | Terminal; no retry |
+
+FAILED retry attempts reuse the logical run row; the existing job retry_count records
+attempt count. A separate immutable per-attempt audit table is not introduced by v1.
+
 1. Worker claims job and reserves model_run_id, then commits quickly. Existing column is
    nullable until reservation; its unique constraint prevents sharing one run across jobs.
 2. AI-06 creates or inspects model_runs under that ID in a short transaction. Existing
@@ -158,7 +179,9 @@ depend on the orchestrator. FUT-05 arbitrary simulation requests remain out of s
    tenant-scoped transaction; it does not share a mutable Session across threads.
 4. Publish all output rows and finalize model_runs=SUCCESS in **one transaction**, after
    locking the same jobs row used by cancellation, checking organization/run linkage,
-   RUNNING state and cancellation again. Abort if ownership/state no longer matches.
+   RUNNING state and cancellation again. Under that lock, re-read model_runs: an already
+   committed SUCCESS must return the stored outcome rather than insert again, even if
+   both callers passed an earlier pre-computation check. Abort if ownership/state no longer matches.
    No output is visible from a failed or cancelled attempt. This lock is held only for
    publication, not model fitting. AI reads/locks jobs but does not update jobs.status.
 5. Worker validates PipelineOutcome IDs and updates jobs. A crash after output commit but
