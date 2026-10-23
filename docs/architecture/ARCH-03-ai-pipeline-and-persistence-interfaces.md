@@ -221,13 +221,16 @@ for AI-06/WORK-04 adoption, not claimed as executed by this architecture task.
 | Backend `pytest tests/unit/ai/test_pipeline_contracts.py -q` | PASS - 47 tests |
 | Backend `pytest tests/unit -q` | PASS - 258 tests, 2 dependency deprecation warnings |
 | Root `node scripts/run-contracts.mjs` | PASS - all six commands, including new fixtures and nine injected failures |
-| Documentation governance / git diff --check | Pending final commit checks |
+| Root `bash .github/scripts/check-documentation-governance.sh 4f71cf8 HEAD` | PASS - current 17-section task doc plus complete existing task documents |
+| `git diff --check` and staged whitespace check | PASS |
 | PostgreSQL, migrations, Docker and full product E2E | NOT RUN - no PostgreSQL/Docker executables; no runtime IO is changed |
 | Remote branch / CI / PR | NOT RUN - GitHub branch write rejected with HTTP 403 |
 | Independent affected-owner review | NOT RUN - not supplied or fabricated |
 
 Fresh dependencies satisfy project ranges. Toolchain warnings are recorded in final logs.
 The handoff bundle includes replay commands and a commit preserving the base history.
+The 47 ARCH-03 tests are included in the 258-test unit suite, not added to it as another
+47 distinct tests. `git push` also failed because no shell GitHub writer is configured.
 
 ## 15. Known Limitations
 
