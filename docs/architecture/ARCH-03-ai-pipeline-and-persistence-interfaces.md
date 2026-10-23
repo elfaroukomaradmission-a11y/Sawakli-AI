@@ -7,10 +7,11 @@ Worker/API consumers. Prepared on 23 October 2026 from main `4f71cf8d2b9afda36c6
 The package includes decisions, typed inputs/results, pure safety adapters, six linked
 contract examples and CI validation. It does not implement the AI-06 orchestrator.
 
-Delivery status: local implementation and evidence prepared; affected-owner review and
-remote publication remain separate. GitHub rejected branch creation with HTTP 403,
-`Resource not accessible by integration`. No remote branch, PR, CI result or merge is invented.
-Final task acceptance follows the repository review/publication process.
+Delivery status: implementation and validation fixes are published on
+`arch/arch-03-ai-contracts`. The authenticated CLI push and remote branch SHA were
+verified on 23 October 2026. All five CI jobs passed on the implementation head
+(see section 14). Affected-owner review remains required; ADR 0002 is prepared for
+review, not Accepted. No merge is authorized.
 
 ## 2. Scope
 
@@ -214,26 +215,32 @@ for AI-06/WORK-04 adoption, not claimed as executed by this architecture task.
 
 ## 14. Verification
 
-23 October 2026, CPython 3.12.14, isolated `/tmp/arch03-venv`, Linux.
+23 October 2026, CPython 3.12.3 and Node 24.22.1, isolated temporary checkout and
+virtual environment. These results supersede the handoff's historical local results.
 
 | Command / check | Observed result |
 |---|---|
 | Backend `ruff check .` | PASS |
 | Backend `ruff format --check .` | PASS - 174 files |
-| Backend `mypy src` | PASS - 97 source files |
-| Backend `pytest tests/unit/ai/test_pipeline_contracts.py -q` | PASS - 47 tests |
-| Backend `pytest tests/unit -q` | PASS - 258 tests, 2 dependency deprecation warnings |
-| Root `node scripts/run-contracts.mjs` | PASS - all six commands, including new fixtures and nine injected failures |
-| Root `bash .github/scripts/check-documentation-governance.sh 4f71cf8 HEAD` | PASS - current 17-section task doc plus complete existing task documents |
+| Backend `mypy src` | PASS - 97 source files, strict configuration |
+| Backend `pytest tests/unit/ai/test_pipeline_contracts.py -q` | PASS - 48 tests |
+| Backend `pytest tests/unit -q` | PASS - 259 tests, zero skips, 2 dependency deprecation warnings |
+| Root `node scripts/run-contracts.mjs` | PASS - six commands; 27 ARCH-03 corruptions and 23 existing QA negative cases rejected |
+| CLI `node tests/contracts/validate-ai-pipeline.mjs --fixture <invalid-file>` | PASS - five external corrupt fixtures accepted before the fix now exit nonzero |
+| Root `bash .github/scripts/check-documentation-governance.sh origin/main HEAD` | PASS - actual PR base is main at `4f71cf8` |
 | `git diff --check` and staged whitespace check | PASS |
-| PostgreSQL, migrations, Docker and full product E2E | NOT RUN - no PostgreSQL/Docker executables; no runtime IO is changed |
-| Remote branch / CI / PR | NOT RUN - GitHub branch write rejected with HTTP 403 |
-| Independent affected-owner review | NOT RUN - not supplied or fabricated |
+| Local PostgreSQL/migration checks | NOT RUN - PostgreSQL binaries unavailable; configured Backend CI supplies real PostgreSQL and migration round-trip |
+| Local Compose integration | NOT RUN - Docker client exists but no running daemon; configured Integration CI is required |
+| Full product E2E and AI-06 cancellation/retry races | NOT RUN - production wiring is downstream scope |
+| Remote branch push | PASS - authenticated push; exact SHA confirmed with `git ls-remote` |
+| Remote CI | PASS - all five jobs on implementation head `4f2b10b3c614b01d94b5c1df14d1fbfc05938f5b`, [run 40007705822](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/actions/runs/40007705822); final documentation-head rerun evidence is recorded in PR #32 and the submission package |
+| Independent affected-owner review | NOT RUN - awaiting human review |
 
-Fresh dependencies satisfy project ranges. Toolchain warnings are recorded in final logs.
-The handoff bundle includes replay commands and a commit preserving the base history.
-The 47 ARCH-03 tests are included in the 258-test unit suite, not added to it as another
-47 distinct tests. `git push` also failed because no shell GitHub writer is configured.
+The 48 ARCH-03 tests are included in the 259 unit tests. Benchmark replays for both
+reference seeds ran in the unit suite; fixture examples still do not claim model output
+or DB execution. Fresh dependencies satisfy the project ranges. Contract subprocesses
+required execution outside the restricted sandbox after EPERM; the complete runner then
+passed. No allowlist entries or valid checks were removed.
 
 ## 15. Known Limitations
 
@@ -244,7 +251,7 @@ The 47 ARCH-03 tests are included in the 258-test unit suite, not added to it as
 - Seven-day simulator math and unavailable-ratio API projection need downstream implementation.
 - Serial retry/cancellation publication protocol needs real PostgreSQL concurrency tests.
 - Runtime-role separation and advanced overlapping-worker recovery remain separately gated.
-- Remote publication and cross-owner review are not complete; the local package is reviewable.
+- Cross-owner review remains required before adoption; publication and implementation CI are confirmed.
 
 ## 16. Follow-Up Tasks
 
@@ -262,7 +269,8 @@ or schedule changes are created by ARCH-03.
 - [Existing benchmark](../testing/AI-02-seeded-benchmark.md)
 - [Canonical DB/output fields](../../tests/contracts/canonical.json)
 - [Worked fixtures](../../tests/contracts/ai-pipeline-v1.json)
+- [Pull request #32](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/pull/32)
 - [Base main commit](https://github.com/elfaroukomaradmission-a11y/Sawakli-AI/commit/4f71cf8d2b9afda36c64108fe65fc03de7cf3804)
 - Teammate source attachments: ARCH-02 API Layer Guide (4 pages), ARCH-05 Task Completion
   Summary (1 page), ARCH-06 frontend API/state conventions (10 pages), read for the baseline.
-- No PR, merge, remote CI, DB insert or independent approval is invented in this record.
+- Publication evidence and exact-head CI are linked from the PR; no merge, fixture DB insert or independent approval is claimed.
